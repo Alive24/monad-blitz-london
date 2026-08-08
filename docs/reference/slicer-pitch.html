@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SLICER — Liquidations where the penalty is a price</title>
+<style>
+  /* Single committed theme: a trading terminal. All colors painted explicitly. */
+  :root{
+    --ground:#0A0C10;
+    --surface:#12151C;
+    --surface-2:#171B24;
+    --line:#232833;
+    --ink:#E7EAF0;
+    --muted:#98A1B0;
+    --faint:#6B7482;
+    --amber:#F5B14C;        /* UI accent (text/rules on ground) */
+    --amber-mark:#CC821E;   /* validated chart mark */
+    --purple:#8B79F7;       /* Monad / keeper 2 */
+    --green:#4ADE80;        /* status: healthy / survived */
+    --red:#F0655A;          /* status: liquidation */
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:17px;
+    line-height:1.65;
+    margin:0;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:0 24px}
+  .narrow{max-width:680px}
+
+  /* ---------- type ---------- */
+  .eyebrow{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.22em;
+    color:var(--amber);text-transform:uppercase;
+  }
+  h1.wordmark{
+    font-family:var(--mono);
+    font-size:clamp(3rem,9vw,5.4rem);
+    letter-spacing:.14em;
+    font-weight:700;margin:.35rem 0 .5rem;line-height:1;
+    color:var(--ink);
+  }
+  h1.wordmark .cut{color:var(--amber)}
+  .tagline{font-size:clamp(1.15rem,2.6vw,1.5rem);color:var(--ink);max-width:34ch;text-wrap:balance;margin:0 0 .4rem;font-weight:600;line-height:1.35}
+  .sub{color:var(--muted);max-width:58ch;margin:0}
+  h2{
+    font-family:var(--mono);font-size:.85rem;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--amber);font-weight:600;margin:0 0 1.1rem;
+    display:flex;align-items:center;gap:14px;
+  }
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
+  h3{font-size:1.05rem;margin:0 0 .4rem;text-wrap:balance}
+  p{margin:0 0 1rem}
+  section{padding:56px 0 8px}
+  .measure{max-width:64ch}
+  strong{color:var(--ink)}
+  .mut{color:var(--muted)}
+  a{color:var(--amber)}
+  code,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  ::selection{background:#3a2f14;color:var(--ink)}
+
+  /* ---------- hero ---------- */
+  header{padding:64px 0 40px;border-bottom:1px solid var(--line)}
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:1.2rem}
+  .chip{
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;
+    border:1px solid var(--line);border-radius:3px;padding:4px 10px;color:var(--muted);
+    background:var(--surface);
+  }
+  .chip b{color:var(--purple);font-weight:600}
+
+  /* ---------- simulator ---------- */
+  .sim{
+    margin:40px 0 0;border:1px solid var(--line);border-radius:6px;background:var(--surface);
+    overflow:hidden;
+  }
+  .sim-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;
+  }
+  .sim-title{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .sim-status{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;padding:3px 9px;border-radius:3px;font-weight:600}
+  .st-calm{background:#12261a;color:var(--green)}
+  .st-crash{background:#2b1512;color:var(--red)}
+  .st-slicing{background:#2b2110;color:var(--amber)}
+  .st-survived{background:#12261a;color:var(--green)}
+  .sim-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:0}
+  @media (max-width:720px){.sim-grid{grid-template-columns:1fr}}
+  .sim-left{padding:14px;border-right:1px solid var(--line)}
+  @media (max-width:720px){.sim-left{border-right:none;border-bottom:1px solid var(--line)}}
+  .sim canvas{display:block;width:100%;height:auto}
+  .healthrow{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .hlabel{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;white-space:nowrap}
+  .hbar{flex:1;height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden;position:relative}
+  .hbar-fill{height:100%;width:60%;border-radius:5px;background:var(--green);transition:width .25s linear}
+  .hval{font-family:var(--mono);font-size:.8rem;min-width:4.2ch;text-align:right;font-variant-numeric:tabular-nums}
+  .feed{
+    height:238px;overflow:hidden;padding:10px 14px;display:flex;flex-direction:column;gap:5px;
+    font-family:var(--mono);font-size:.72rem;line-height:1.5;
+  }
+  .feed-line{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .feed-line .k-gary{color:var(--amber)}
+  .feed-line .k-petra{color:var(--purple)}
+  .feed-line.halt{color:var(--green);font-weight:700}
+  .feed-line.open{color:var(--faint)}
+  .counters{
+    display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);
+  }
+  .counter{padding:12px 14px;border-right:1px solid var(--line)}
+  .counter:last-child{border-right:none}
+  .c-num{font-family:var(--mono);font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .c-lab{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;margin-top:2px}
+  .banner{
+    display:none;align-items:center;gap:10px;justify-content:center;
+    padding:11px 14px;font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;font-weight:700;
+    background:#122a1c;color:var(--green);border-top:1px solid #1d4030;
+  }
+  .banner.show{display:flex}
+  .replay{
+    background:none;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);
+    font-size:.68rem;letter-spacing:.1em;padding:4px 12px;border-radius:3px;cursor:pointer;
+  }
+  .replay:hover{color:var(--ink);border-color:var(--faint)}
+  .replay:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .sim-caption{font-size:.82rem;color:var(--faint);margin-top:10px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-family:var(--mono);font-size:.68rem;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+
+  /* ---------- classic card ---------- */
+  .versus{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:26px 0 6px}
+  @media (max-width:720px){.versus{grid-template-columns:1fr}}
+  .vcard{border:1px solid var(--line);border-radius:6px;padding:20px;background:var(--surface)}
+  .vcard.dead{background:#15100F;border-color:#33221E}
+  .vcard h3{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .vcard .big{font-family:var(--mono);font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:4px}
+  .vcard.dead .big{color:var(--red)}
+  .vcard.live .big{color:var(--green)}
+  .vcard .note{font-size:.85rem;color:var(--muted);margin:0}
+
+  /* ---------- problem cards ---------- */
+  .twoflaws{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+  @media (max-width:720px){.twoflaws{grid-template-columns:1fr}}
+  .flaw{border:1px solid var(--line);border-left:3px solid var(--red);border-radius:0 6px 6px 0;background:var(--surface);padding:18px 20px}
+  .flaw h3{font-size:1rem}
+  .flaw p{font-size:.92rem;color:var(--muted);margin:0}
+
+  /* ---------- mechanism steps (real sequence) ---------- */
+  .steps{display:flex;flex-direction:column;gap:0;margin-top:20px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .step{display:grid;grid-template-columns:64px 1fr;background:var(--surface);border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:none}
+  .step-n{
+    font-family:var(--mono);font-size:1rem;color:var(--amber);display:flex;align-items:flex-start;
+    justify-content:center;padding:20px 0;border-right:1px solid var(--line);font-weight:700;
+  }
+  .step-body{padding:18px 22px}
+  .step-body p{font-size:.93rem;color:var(--muted);margin:0}
+  .step.hot{background:var(--surface-2)}
+  .step.hot .step-body h3{color:var(--green)}
+
+  /* ---------- why-monad bars ---------- */
+  .figure{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:20px;margin-top:22px}
+  .figure figcaption, .figcap{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;margin-bottom:16px}
+  .bars{display:flex;flex-direction:column;gap:14px}
+  .brow{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:12px}
+  .bname{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+  .btrack{position:relative;height:22px}
+  .bfill{position:absolute;top:4px;left:0;height:14px;border-radius:0 4px 4px 0}
+  .bva{position:absolute;top:0;font-family:var(--mono);font-size:.78rem;font-variant-numeric:tabular-nums;line-height:22px;white-space:nowrap}
+  .fig-note{font-size:.82rem;color:var(--faint);margin:14px 0 0}
+
+  /* ---------- quadrant ---------- */
+  .quad-wrap{overflow-x:auto}
+  .quad{min-width:520px}
+
+  /* ---------- stat tiles ---------- */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+  @media (max-width:720px){.tiles{grid-template-columns:repeat(2,1fr)}}
+  .tile{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:16px 18px}
+  .tile .n{font-family:var(--mono);font-size:1.9rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+  .tile .n.zero{color:var(--amber)}
+  .tile .l{font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.4}
+
+  /* ---------- code ---------- */
+  pre{
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.7;
+    color:var(--ink);margin:18px 0 8px;
+  }
+  pre .c{color:var(--faint)} pre .k{color:var(--purple)} pre .f{color:var(--amber)}
+
+  /* ---------- Q&A ---------- */
+  .qa{border-top:1px solid var(--line)}
+  .qa-item{border-bottom:1px solid var(--line);padding:18px 0}
+  .qa-item h3{font-size:.98rem;margin-bottom:.35rem}
+  .qa-item h3::before{content:"Q · ";font-family:var(--mono);color:var(--amber);font-size:.85rem}
+  .qa-item p{font-size:.92rem;color:var(--muted);margin:0}
+
+  footer{border-top:1px solid var(--line);margin-top:64px;padding:28px 0 48px}
+  footer p{font-family:var(--mono);font-size:.72rem;color:var(--faint);letter-spacing:.06em}
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    .hbar-fill{transition:none}
+  }
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Monad Blitz London · Concept Ratification</div>
+    <h1 class="wordmark">SLI<span class="cut">/</span>CER</h1>
+    <p class="tagline">Liquidations where the penalty is a price, not a parameter.</p>
+    <p class="sub">A liquidation engine that sells distressed positions in 2.5% micro-slices, Dutch-auctions the penalty of each slice, and stops the moment the position recovers.</p>
+    <div class="chips">
+      <span class="chip"><b>MONAD</b> testnet · 300ms blocks</span>
+      <span class="chip">Solidity / Foundry</span>
+      <span class="chip">Solo · 7-hour build</span>
+      <span class="chip">Engine, not a protocol</span>
+    </div>
+
+    <!-- ======== LIVE SIMULATION ======== -->
+    <div class="sim" id="sim">
+      <div class="sim-head">
+        <span class="sim-title">Live mechanism replay — one crash, simulated</span>
+        <span style="display:flex;gap:10px;align-items:center">
+          <span class="sim-status st-calm" id="simStatus">CALM</span>
+          <button class="replay" id="replayBtn" type="button">↻ REPLAY</button>
+        </span>
+      </div>
+      <div class="sim-grid">
+        <div class="sim-left">
+          <canvas id="priceCv" width="640" height="190" aria-label="ETH price during the simulated crash, with slice claims marked"></canvas>
+          <div class="healthrow">
+            <span class="hlabel">Health</span>
+            <div class="hbar"><div class="hbar-fill" id="hFill"></div></div>
+            <span class="hval" id="hVal">1.04</span>
+          </div>
+          <canvas id="curveCv" width="640" height="130" aria-label="Clearing discount in basis points for each claimed slice over time" style="margin-top:12px"></canvas>
+          <div class="legend">
+            <span><span class="dot" style="background:#CC821E"></span>greedy_gary claims</span>
+            <span><span class="dot" style="background:#8B79F7"></span>patient_petra claims</span>
+            <span><span class="dot" style="background:#4ADE80"></span>slicing halted</span>
+          </div>
+        </div>
+        <div class="feed" id="feed" aria-live="off"></div>
+      </div>
+      <div class="counters">
+        <div class="counter"><div class="c-num" id="cSlices">0</div><div class="c-lab">slices sold</div></div>
+        <div class="counter"><div class="c-num" id="cPenalty">—</div><div class="c-lab">avg penalty (market-set)</div></div>
+        <div class="counter"><div class="c-num" id="cKept">100%</div><div class="c-lab">position kept</div></div>
+      </div>
+      <div class="banner" id="banner">▮ POSITION SURVIVED · kept <span id="bKept">—</span> · avg penalty <span id="bPen">—</span> vs fixed 5.00%</div>
+    </div>
+    <p class="sim-caption">Deterministic replay of the demo scenario: −8% crash, half retrace. Two keeper bots with different risk appetites claim slices at discounts they choose. This same loop runs live on Monad testnet in the demo.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ======== VERSUS ======== -->
+  <section>
+    <h2>Same crash, two outcomes</h2>
+    <div class="versus">
+      <div class="vcard dead">
+        <h3>Classic protocol · today's standard</h3>
+        <div class="big">−5.00% · CLOSED</div>
+        <p class="note">Health touches 0.99 for one block. The whole position is seized, a governance-fixed 5% penalty goes to a bot. The price retraces a minute later — the trader is already gone.</p>
+      </div>
+      <div class="vcard live">
+        <h3>Slicer · same position, same crash</h3>
+        <div class="big" id="vKept">−0.3%* · SURVIVED</div>
+        <p class="note">Deleverages one 2.5% slice at a time, each priced by keeper competition. On retrace, slicing halts and the trader keeps the rest. <span class="mono">*avg clearing penalty from the replay above</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== PROBLEM ======== -->
+  <section>
+    <h2>The problem</h2>
+    <div class="twoflaws">
+      <div class="flaw">
+        <h3>It's a cliff, not a slope</h3>
+        <p>0.1% underwater gets the same treatment as 10% underwater: total closure. Flash wicks that revert in seconds destroy positions that would have been healthy a minute later.</p>
+      </div>
+      <div class="flaw">
+        <h3>The penalty is a guess</h3>
+        <p>A fixed bonus overpays keepers in calm markets and underpays them in violent ones. The right number changes minute to minute — no constant is correct.</p>
+      </div>
+    </div>
+    <p class="measure" style="margin-top:20px">Interest rates became curves. Swap fees went dynamic. <strong>The liquidation penalty is one of the last unpriced constants in DeFi.</strong></p>
+  </section>
+
+  <!-- ======== MECHANISM ======== -->
+  <section>
+    <h2>The mechanism</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <h3>Slice, don't seize</h3>
+          <p>When health &lt; 1, a <span class="mono">2.5%</span> micro-slice goes up for sale — not the whole position. Each cleared slice repays debt, nudging health back up.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <h3>Auction the penalty itself</h3>
+          <p>The keeper discount starts at <span class="mono">0bps</span> and ramps <span class="mono">+10bps per block</span> until claimed. Calm market: ~20–30bps, since waiting means being front-run. Violent market: 60–80bps. <strong>The penalty is discovered per-slice by competition. Nobody sets it.</strong></p>
+        </div>
+      </div>
+      <div class="step hot">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <h3>Stop when healthy — the position survives</h3>
+          <p>The moment health crosses back above 1, slicing <strong>halts</strong> — the borrower keeps everything unsold. A conventional backstop remains below health <span class="mono">0.92</span>, so the bad-debt guarantee never weakens.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== WHY MONAD ======== -->
+  <section>
+    <h2>Why this needs Monad</h2>
+    <div class="figure">
+      <div class="figcap">Time for one slice auction to sweep 0 → 50bps</div>
+      <div class="bars">
+        <div class="brow">
+          <span class="bname">Ethereum L1</span>
+          <div class="btrack">
+            <div class="bfill" style="width:92%;background:#3A4150"></div>
+            <span class="bva" style="left:calc(92% + 8px);color:#98A1B0">60s · position is bad debt before the auction ends</span>
+          </div>
+        </div>
+        <div class="brow">
+          <span class="bname">Monad</span>
+          <div class="btrack">
+            <div class="bfill" style="width:2.5%;background:#CC821E"></div>
+            <span class="bva" style="left:calc(2.5% + 8px);color:#F5B14C">1.5s</span>
+          </div>
+        </div>
+      </div>
+      <p class="fig-note">The ramp is per-block, so block time is the resolution of price discovery. At 12s blocks a 15-slice deleveraging takes 15+ minutes — dead on arrival. Fast blocks don't make Slicer faster; they make it <strong>possible</strong>.</p>
+    </div>
+  </section>
+
+  <!-- ======== PRIOR ART ======== -->
+  <section>
+    <h2>The empty quadrant</h2>
+    <div class="figure quad-wrap">
+      <div class="figcap">Liquidation design space</div>
+      <svg class="quad" viewBox="0 0 640 380" width="100%" role="img" aria-label="Two-by-two matrix: penalty discovery versus granularity. Slicer alone occupies market-discovered penalty with per-slice granularity.">
+        <!-- axes -->
+        <line x1="320" y1="30" x2="320" y2="330" stroke="#232833" stroke-width="1"/>
+        <line x1="60" y1="180" x2="580" y2="180" stroke="#232833" stroke-width="1"/>
+        <!-- axis labels -->
+        <text x="320" y="16" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="2" fill="#6B7482">PENALTY: FIXED ▲ MARKET-DISCOVERED</text>
+        <text x="320" y="352" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="2" fill="#6B7482">▼ PENALTY FIXED</text>
+        <text x="46" y="180" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="2" fill="#6B7482" transform="rotate(-90 46 180)">◀ WHOLE-POSITION</text>
+        <text x="596" y="180" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="2" fill="#6B7482" transform="rotate(90 596 180)">PER-SLICE ▶</text>
+        <!-- quadrant occupants -->
+        <g font-family="system-ui,sans-serif" font-size="13">
+          <g>
+            <circle cx="180" cy="270" r="6" fill="#3A4150"/>
+            <text x="180" y="292" text-anchor="middle" fill="#98A1B0">Aave · Compound</text>
+            <text x="180" y="308" text-anchor="middle" fill="#6B7482" font-size="11">one shot, fixed bonus</text>
+          </g>
+          <g>
+            <circle cx="180" cy="95" r="6" fill="#3A4150"/>
+            <text x="180" y="117" text-anchor="middle" fill="#98A1B0">Euler</text>
+            <text x="180" y="133" text-anchor="middle" fill="#6B7482" font-size="11">Dutch, but whole-position, one-shot</text>
+          </g>
+          <g>
+            <circle cx="460" cy="270" r="6" fill="#3A4150"/>
+            <text x="460" y="292" text-anchor="middle" fill="#98A1B0">Drift (Solana)</text>
+            <text x="460" y="308" text-anchor="middle" fill="#6B7482" font-size="11">gradual, but fee is fixed</text>
+          </g>
+          <g>
+            <rect x="404" y="72" width="112" height="34" rx="4" fill="#241C0C" stroke="#CC821E"/>
+            <text x="460" y="94" text-anchor="middle" fill="#F5B14C" font-family="ui-monospace,Menlo,monospace" font-weight="700" letter-spacing="2">SLICER</text>
+            <text x="460" y="126" text-anchor="middle" fill="#98A1B0" font-size="11">per-slice · time-ramped · market-cleared</text>
+          </g>
+        </g>
+      </svg>
+      <p class="fig-note">Drift proved gradual liquidation; Euler proved Dutch-auction liquidation. Slicer composes them — the quadrant neither occupies, and one that only opens at sub-second blocks.</p>
+    </div>
+  </section>
+
+  <!-- ======== FIELD CHECK ======== -->
+  <section>
+    <h2>Field check — every Blitz project scanned</h2>
+    <div class="tiles">
+      <div class="tile"><div class="n">1,327</div><div class="l">projects scanned across all Blitz events</div></div>
+      <div class="tile"><div class="n zero">0</div><div class="l">liquidation engines or penalty-auction mechanisms</div></div>
+      <div class="tile"><div class="n">1</div><div class="l">Dutch-auction project — a retail flash-sale app, not DeFi</div></div>
+      <div class="tile"><div class="n">8<span style="color:#6B7482;font-size:1.1rem">/66</span></div><div class="l">winners built explicitly on Monad's block speed — the judged-winning pattern Slicer follows</div></div>
+    </div>
+    <p class="measure" style="margin-top:20px">Dozens of perp DEXes and lending markets — all inherit the classic liquidation cliff. <strong>The lane is empty.</strong> <span class="mut">(Showcase API, ~45 events, Aug 2026.)</span></p>
+  </section>
+
+  <!-- ======== ARCHITECTURE ======== -->
+  <section>
+    <h2>An engine, not a protocol</h2>
+    <p class="measure">Slicer bolts onto any margin system that implements three functions. The demo's margin ledger is a deliberately dumb stub; the engine is the product.</p>
+<pre>interface <span class="f">ISliceable</span> {
+    <span class="c">// what is the position?</span>
+    <span class="k">function</span> <span class="f">getPosition</span>(address account) <span class="k">external view returns</span>
+        (uint256 collateral, uint256 debt, uint256 price, uint256 health);
+
+    <span class="c">// the only two powers the engine ever needs</span>
+    <span class="k">function</span> <span class="f">seizeCollateral</span>(address account, address to, uint256 amount) <span class="k">external</span>;
+    <span class="k">function</span> <span class="f">repayDebt</span>(address account, uint256 amount) <span class="k">external</span>;
+}</pre>
+    <p class="measure">Slice sales can settle through any AMM — a Uniswap v4 route (live on Monad mainnet) takes keeper capital requirements to zero. The live demo runs the replay above against real testnet contracts, every claim a real transaction at 300ms cadence.</p>
+  </section>
+
+  <!-- ======== QA ======== -->
+  <section>
+    <h2>The obvious objections</h2>
+    <div class="qa">
+      <div class="qa-item">
+        <h3>Can't keepers collude and wait for max discount?</h3>
+        <p>Any keeper can defect one block early and take the whole slice. At 10bps per 300ms block, cartel discipline breaks faster than it forms — first-claim-wins is the enforcement mechanism.</p>
+      </div>
+      <div class="qa-item">
+        <h3>Does gradualism create bad debt in a real crash?</h3>
+        <p>No. Below health 0.92 conventional full liquidation is available, unchanged. Slicer only replaces the cliff in the 0.92–1.00 band, where gradualism is safe by construction.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>SLICER · MONAD BLITZ LONDON · SOLIDITY/FOUNDRY + VIEM + LIVE DASHBOARD · FIELD DATA: BLITZ.DEVNADS.COM SHOWCASE API, AUG 2026</p>
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- deterministic scenario simulation ----------
+  // Position: 10 WETH collateral, 24,500 dUSD debt, LT 0.85. h0 = 10*3000*.85/24500 = 1.041
+  var LT = 0.85, BLOCK_MS = 300, RAMP_BPS = 10, SLICE_PCT = 0.025;
+  var DT = 100; // sim step ms
+  var PHASES = { calmEnd: 6000, crashEnd: 14000, recovEnd: 24000, end: 28000 };
+
+  function priceAt(t){
+    var noise = Math.sin(t/430)*3 + Math.sin(t/97)*1.5;
+    if (t < PHASES.calmEnd) return 3000 + noise;
+    if (t < PHASES.crashEnd){
+      var k = (t - PHASES.calmEnd)/(PHASES.crashEnd - PHASES.calmEnd);
+      var e = 1 - Math.pow(1-k, 2.2);
+      return 3000 - 240*e + noise;
+    }
+    if (t < PHASES.recovEnd){
+      var k2 = (t - PHASES.crashEnd)/(PHASES.recovEnd - PHASES.crashEnd);
+      var e2 = 1 - Math.pow(1-k2, 1.8);
+      return 2760 + 120*e2 + noise;
+    }
+    return 2880 + noise;
+  }
+
+  // Pre-run the whole scenario into a timeline of frames + events.
+  function simulate(){
+    var col = 10, debt = 24500, col0 = 10;
+    var frames = [], events = [], sliceOpenT = -1, sliceAmt = 0, sliceNo = 0;
+    var discSum = 0, discCount = 0, halted = false;
+    for (var t = 0; t <= PHASES.end; t += DT){
+      var p = priceAt(t);
+      var h = col * p * LT / debt;
+      var ev = null;
+      if (!halted){
+        if (h < 1 && sliceOpenT < 0){
+          sliceOpenT = t; sliceAmt = col * SLICE_PCT;
+          if (sliceNo === 0) events.push({t:t, type:"open0"});
+        } else if (sliceOpenT >= 0){
+          if (h >= 1){
+            halted = true; sliceOpenT = -1;
+            ev = {t:t, type:"halt"};
+            events.push(ev);
+          } else {
+            var blocks = Math.floor((t - sliceOpenT)/BLOCK_MS);
+            var disc = Math.min(blocks * RAMP_BPS, 500);
+            // keeper thresholds; gary demands more while price is falling
+            var falling = priceAt(t) < priceAt(Math.max(0, t-2000)) - 15;
+            var garyTh = 20 + (falling ? 20 : 0);
+            var claimer = null;
+            if (disc >= 45) claimer = "petra";
+            else if (disc >= garyTh) claimer = "gary";
+            if (claimer){
+              sliceNo++;
+              var effP = p * (10000 - disc)/10000;
+              debt -= sliceAmt * effP;
+              col  -= sliceAmt;
+              discSum += disc; discCount++;
+              ev = {t:t, type:"claim", n:sliceNo, keeper:claimer, disc:disc, price:p};
+              events.push(ev);
+              sliceOpenT = -1;
+              // reopen immediately if still unhealthy (matches contract behavior)
+              var h2 = col * p * LT / debt;
+              if (h2 < 1){ sliceOpenT = t; sliceAmt = col * SLICE_PCT; }
+            }
+          }
+        }
+      }
+      frames.push({t:t, p:p, h: col*p*LT/debt, col:col, kept: col/col0,
+                   avg: discCount ? discSum/discCount : null, slices: sliceNo, halted: halted});
+    }
+    return {frames:frames, events:events};
+  }
+
+  var SIM = simulate();
+  var FINAL = SIM.frames[SIM.frames.length-1];
+
+  // ---------- rendering ----------
+  var priceCv = document.getElementById("priceCv"), pcx = priceCv.getContext("2d");
+  var curveCv = document.getElementById("curveCv"), ccx = curveCv.getContext("2d");
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  [priceCv, curveCv].forEach(function(cv){
+    var w = cv.width, h = cv.height;
+    cv.style.width = "100%"; cv.width = w*DPR; cv.height = h*DPR;
+    cv.getContext("2d").scale(DPR, DPR);
+    cv._w = w; cv._h = h;
+  });
+
+  var C = { grid:"#1B2029", axis:"#232833", price:"#5F6B7D", priceHot:"#E7EAF0",
+            gary:"#CC821E", petra:"#8B79F7", green:"#4ADE80", faint:"#6B7482" };
+  var PMIN = 2720, PMAX = 3060;
+
+  function px(t, cv){ return 8 + (t/PHASES.end) * (cv._w - 16); }
+  function pyPrice(p){ return 10 + (1 - (p - PMIN)/(PMAX - PMIN)) * (priceCv._h - 34); }
+  function pyDisc(d){ return 12 + (1 - d/80) * (curveCv._h - 40); }
+
+  function drawPrice(upto){
+    pcx.clearRect(0,0,priceCv._w,priceCv._h);
+    // grid
+    pcx.strokeStyle = C.grid; pcx.lineWidth = 1;
+    [2760, 2880, 3000].forEach(function(g){
+      var y = pyPrice(g);
+      pcx.beginPath(); pcx.moveTo(8,y); pcx.lineTo(priceCv._w-8,y); pcx.stroke();
+      pcx.fillStyle = C.faint; pcx.font = "9px ui-monospace,Menlo,monospace";
+      pcx.fillText("$"+g, priceCv._w-42, y-4);
+    });
+    // price line
+    pcx.strokeStyle = C.price; pcx.lineWidth = 2; pcx.lineJoin = "round"; pcx.beginPath();
+    var started=false, lastF=null;
+    for (var i=0;i<SIM.frames.length;i++){
+      var f = SIM.frames[i]; if (f.t > upto) break;
+      var x = px(f.t, priceCv), y = pyPrice(f.p);
+      if (!started){ pcx.moveTo(x,y); started=true; } else pcx.lineTo(x,y);
+      lastF = f;
+    }
+    pcx.stroke();
+    // endpoint emphasis
+    if (lastF){
+      pcx.fillStyle = C.priceHot;
+      pcx.beginPath(); pcx.arc(px(lastF.t,priceCv), pyPrice(lastF.p), 3.5, 0, 7); pcx.fill();
+      pcx.font = "700 11px ui-monospace,Menlo,monospace";
+      pcx.fillText("$"+lastF.p.toFixed(0), Math.min(px(lastF.t,priceCv)+8, priceCv._w-52), pyPrice(lastF.p)-8);
+    }
+    // slice claim markers on the price line
+    SIM.events.forEach(function(e){
+      if (e.type!=="claim" || e.t>upto) return;
+      pcx.fillStyle = e.keeper==="gary" ? C.gary : C.petra;
+      pcx.strokeStyle = "#12151C"; pcx.lineWidth = 2;
+      pcx.beginPath(); pcx.arc(px(e.t,priceCv), pyPrice(e.price), 4, 0, 7); pcx.fill(); pcx.stroke();
+    });
+    // halt marker
+    SIM.events.forEach(function(e){
+      if (e.type!=="halt" || e.t>upto) return;
+      var x = px(e.t, priceCv);
+      pcx.strokeStyle = C.green; pcx.lineWidth = 1.5; pcx.setLineDash([4,4]);
+      pcx.beginPath(); pcx.moveTo(x,8); pcx.lineTo(x,priceCv._h-24); pcx.stroke(); pcx.setLineDash([]);
+    });
+    pcx.fillStyle = C.faint; pcx.font = "9px ui-monospace,Menlo,monospace";
+    pcx.fillText("ETH / dUSD ORACLE", 8, priceCv._h-6);
+  }
+
+  function drawCurve(upto){
+    ccx.clearRect(0,0,curveCv._w,curveCv._h);
+    ccx.strokeStyle = C.grid; ccx.lineWidth = 1;
+    [0,25,50,75].forEach(function(g){
+      var y = pyDisc(g);
+      ccx.beginPath(); ccx.moveTo(8,y); ccx.lineTo(curveCv._w-8,y); ccx.stroke();
+      ccx.fillStyle = C.faint; ccx.font = "9px ui-monospace,Menlo,monospace";
+      ccx.fillText(g+"bp", curveCv._w-34, y-3);
+    });
+    // connecting line through claims
+    var pts = SIM.events.filter(function(e){ return e.type==="claim" && e.t<=upto; });
+    if (pts.length > 1){
+      ccx.strokeStyle = "rgba(204,130,30,.45)"; ccx.lineWidth = 2; ccx.beginPath();
+      pts.forEach(function(e,i){
+        var x = px(e.t,curveCv), y = pyDisc(e.disc);
+        if (i===0) ccx.moveTo(x,y); else ccx.lineTo(x,y);
+      });
+      ccx.stroke();
+    }
+    pts.forEach(function(e){
+      ccx.fillStyle = e.keeper==="gary" ? C.gary : C.petra;
+      ccx.strokeStyle = "#12151C"; ccx.lineWidth = 2;
+      ccx.beginPath(); ccx.arc(px(e.t,curveCv), pyDisc(e.disc), 4.5, 0, 7); ccx.fill(); ccx.stroke();
+    });
+    ccx.fillStyle = C.faint; ccx.font = "9px ui-monospace,Menlo,monospace";
+    ccx.fillText("CLEARING DISCOUNT PER SLICE — the penalty curve, set by keeper competition", 8, curveCv._h-6);
+  }
+
+  // ---------- DOM bits ----------
+  var feed = document.getElementById("feed"), statusEl = document.getElementById("simStatus");
+  var hFill = document.getElementById("hFill"), hVal = document.getElementById("hVal");
+  var cS = document.getElementById("cSlices"), cP = document.getElementById("cPenalty"), cK = document.getElementById("cKept");
+  var banner = document.getElementById("banner");
+  var fedEvents = 0;
+
+  function fmtBlock(t){ return (18442000 + Math.floor(t/BLOCK_MS)).toLocaleString("en-US"); }
+
+  function pushFeed(html, cls){
+    var d = document.createElement("div");
+    d.className = "feed-line" + (cls ? " "+cls : "");
+    d.innerHTML = html;
+    feed.prepend(d);
+    while (feed.children.length > 12) feed.removeChild(feed.lastChild);
+  }
+
+  function setStatus(txt, cls){ statusEl.textContent = txt; statusEl.className = "sim-status " + cls; }
+
+  function renderFrame(f){
+    drawPrice(f.t); drawCurve(f.t);
+    var hClamped = Math.max(0.85, Math.min(1.12, f.h));
+    hFill.style.width = ((hClamped - 0.85)/(1.12-0.85)*100) + "%";
+    hFill.style.background = f.h >= 1 ? "#4ADE80" : (f.h >= 0.97 ? "#F5B14C" : "#F0655A");
+    hVal.textContent = f.h.toFixed(3);
+    hVal.style.color = f.h >= 1 ? "#4ADE80" : (f.h >= 0.97 ? "#F5B14C" : "#F0655A");
+    cS.textContent = f.slices;
+    cP.textContent = f.avg !== null ? (f.avg/100).toFixed(2) + "%" : "—";
+    cK.textContent = (f.kept*100).toFixed(1) + "%";
+    if (f.halted){
+      setStatus("SURVIVED", "st-survived");
+      banner.classList.add("show");
+      document.getElementById("bKept").textContent = (f.kept*100).toFixed(1) + "%";
+      document.getElementById("bPen").textContent = (f.avg/100).toFixed(2) + "%";
+    } else if (f.slices > 0 || f.h < 1){
+      setStatus(f.h < 1 ? "SLICING" : "CRASH", f.h < 1 ? "st-slicing" : "st-crash");
+    } else if (f.p < 2960){
+      setStatus("CRASH", "st-crash");
+    } else {
+      setStatus("CALM", "st-calm");
+    }
+    // feed events up to f.t
+    while (fedEvents < SIM.events.length && SIM.events[fedEvents].t <= f.t){
+      var e = SIM.events[fedEvents++];
+      if (e.type === "open0"){
+        pushFeed("HEALTH &lt; 1.000 · slice #1 opened · discount ramping +10bps/block", "open");
+      } else if (e.type === "claim"){
+        var k = e.keeper === "gary" ? '<span class="k-gary">greedy_gary</span>' : '<span class="k-petra">patient_petra</span>';
+        pushFeed("SLICE #" + e.n + " · 2.5% · " + k + " · <b style='color:#E7EAF0'>" + e.disc + "bps</b> · blk " + fmtBlock(e.t));
+      } else if (e.type === "halt"){
+        pushFeed("▮ HEALTH RESTORED · SLICING HALTED · position survives", "halt");
+      }
+    }
+  }
+
+  // update the versus card from the final simulated numbers
+  (function(){
+    var v = document.getElementById("vKept");
+    v.textContent = "−" + (FINAL.avg/100).toFixed(2) + "% avg · SURVIVED " + (FINAL.kept*100).toFixed(0) + "%";
+  })();
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var raf = null, loopTimer = null, startTs = null;
+
+  function play(){
+    if (raf) cancelAnimationFrame(raf);
+    if (loopTimer) clearTimeout(loopTimer);
+    raf = null; loopTimer = null;
+    feed.innerHTML = ""; fedEvents = 0; banner.classList.remove("show");
+    if (reduced){ renderFrame(FINAL); return; }
+    startTs = null;
+    function tick(ts){
+      if (!startTs) startTs = ts;
+      var t = ts - startTs;
+      var idx = Math.min(SIM.frames.length-1, Math.floor(t/DT));
+      renderFrame(SIM.frames[idx]);
+      if (idx < SIM.frames.length-1){ raf = requestAnimationFrame(tick); }
+      else { raf = null; loopTimer = setTimeout(play, 6000); }
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  document.getElementById("replayBtn").addEventListener("click", function(){
+    if (reduced){ reduced = false; } // explicit user request to see it run
+    play();
+  });
+
+  // start when hero scrolls into view (or immediately if visible)
+  if ("IntersectionObserver" in window && !reduced){
+    var seen = false;
+    new IntersectionObserver(function(entries, obs){
+      if (entries[0].isIntersecting && !seen){ seen = true; play(); obs.disconnect(); }
+    }, {threshold: 0.25}).observe(document.getElementById("sim"));
+  } else {
+    play();
+  }
+})();
+</script>
