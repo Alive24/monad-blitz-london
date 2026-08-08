@@ -11,7 +11,7 @@ let lastRequestAt = 0;
 
 function enqueue<T>(work: () => Promise<T>): Promise<T> {
   const scheduled = requestQueue.then(async () => {
-    const wait = Math.max(0, lastRequestAt + 1_100 - Date.now());
+    const wait = Math.max(0, lastRequestAt + 200 - Date.now());
     if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
     lastRequestAt = Date.now();
     return work();

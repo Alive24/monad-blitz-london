@@ -1,66 +1,51 @@
 # Slicer — managed Aave optimizer on Monad
 
-Slicer is an HF-triggered managed vault prototype for Aave V3 on Monad. It selects top-N supply and borrow baskets, sizes them by market depth and collateral safety, and only rebalances after the live health factor falls below the configured target. Healthier positions are monitored without generating transactions.
+Slicer is a single-process web app for an HF-triggered managed vault. The optimizer selects top-N supply and borrow baskets using yield, market depth, collateral safety, and concentration caps. The Live Lab turns each price tick into an actual Monad testnet transaction and sends one atomic asset-level vault transaction whenever HF falls below target.
 
-The interactive prototype is at [`docs/reference/slicer-v4.html`](docs/reference/slicer-v4.html).
+There is no separate executor and there are no simulated hashes. `npm run dev` serves [`docs/reference/slicer-v4.html`](docs/reference/slicer-v4.html) and its same-origin Viem transaction API. The automated wallet key stays in the server-side, gitignored `.env.local`; it is never sent to the browser.
 
-## Repository layout
-
-- `src/ManagedAaveVault.sol` — atomic asset-level Aave V3 executor with an on-chain HF gate.
-- `test/ManagedAaveVault.t.sol` — dependency-free Foundry tests and Aave/token mocks.
-- `script/DeployManagedAaveVault.s.sol` — Monad testnet deployment script.
-- `automation/src/rebalance.ts` — Viem simulation + automatic broadcast path.
-- `automation/actions.example.json` — ordered `SUPPLY`, `WITHDRAW`, `BORROW`, `REPAY` input format.
-
-Action type values are `0 = SUPPLY`, `1 = WITHDRAW`, `2 = BORROW`, and `3 = REPAY`. Amounts are token base units.
-
-## Local setup
+## Run it
 
 ```bash
 npm install
-forge build
-forge test -vvv
-npm run typecheck
+cp .env.example .env.local   # only for a fresh checkout
+npm run dev
 ```
 
-The generated executor wallet is stored only in the gitignored `.env.local`. Fund its public address with Monad testnet MON before deployment.
+Open <http://127.0.0.1:4174>, choose **Live Lab**, and press either price button. The app simulates each call with Viem, broadcasts it, waits for confirmation, and renders the real Monadscan receipt. The included configured wallet address is:
 
-For an end-to-end testnet proof without claiming a live Aave testnet market, deploy the explicitly labeled Pool harness and real vault:
+`0x9f7136fc32A3c8404102dbC6207a2A899a2fB32e`
+
+## Contracts and testnet deployment
+
+- `src/ManagedAaveVault.sol` — executor-gated atomic `SUPPLY`, `WITHDRAW`, `BORROW`, and `REPAY` basket with the asymmetric HF gate.
+- `src/demo/TestnetAavePoolHarness.sol` — testnet-only Aave-compatible surface that moves real demo ERC-20 balances.
+- `src/demo/TestnetToken.sol` — mintable assets used only by the harness deployment.
+- `app/server.ts` — static web server and same-origin Viem routes in one process.
+
+Current Monad testnet deployment:
+
+- Managed vault: [`0xe05f…8c81`](https://testnet.monadscan.com/address/0xe05f5CfD7BF44d6Fa87b966462e2f34781828c81)
+- Pool harness: [`0xC0DC…04B9`](https://testnet.monadscan.com/address/0xC0DC570Df95EE407Af4f4Acbe3a6d78cEdF204B9)
+- Confirmed six-action vault batch: [`0x142f…517e`](https://testnet.monadscan.com/tx/0x142f48ade364814b068744aa9b7bd7c0fe9d8030fa655cda2be3cecb6323517e)
+- Machine-readable addresses and receipts: `deployments/monad-testnet.demo.json`
+
+Deploy a fresh testnet system with:
 
 ```bash
 npm run deploy:testnet-demo
 ```
 
-The harness exists only to verify deployment, HF reads, and the automatic executor gate on-chain. Never send assets to it.
-
-Current demo deployment:
-
-- Vault: [`0x7A7F…8153`](https://testnet.monadscan.com/address/0x7A7F7d5ABe4b8B86f143B7f4b73CA1d0743C8153)
-- Testnet Pool harness: [`0xd554…1f4A`](https://testnet.monadscan.com/address/0xd554F84f63F3099109ebd77C71Ab72853a4E1f4A)
-- Verified HF response transaction: [`0xbf3b…4467`](https://testnet.monadscan.com/tx/0xbf3bc4a1e14ed63e3ca26a00d8c18f8d9bb9f87f5cfea51244d4fb6a764d4467)
-- Machine-readable record: `deployments/monad-testnet.demo.json`
-
-Run a complete harness-only cycle that changes HF from `1.60` back to `1.75` through the real vault executor:
+Run all checks with:
 
 ```bash
-npm run demo:cycle
+npm run typecheck
+forge fmt --check
+forge test -vvv
 ```
 
-Set `AAVE_POOL_ADDRESS` to the Aave-compatible Pool used for the target environment, then deploy:
+## Boundary
 
-```bash
-npm run deploy:testnet
-```
+The transaction path, ERC-20 movements, HF gate, receipts, and explorer links are real on Monad testnet. The deployed Pool is explicitly a test harness, not the live Aave market, and its HF is controlled by the app to demonstrate oracle trajectories. Replacing `AAVE_POOL_ADDRESS` and the asset addresses with the Monad Aave deployment moves the same vault call path to the target protocol.
 
-After adding the deployed address to `MANAGED_VAULT_ADDRESS`:
-
-```bash
-npm run vault:status
-npm run vault:rebalance -- automation/actions.example.json
-```
-
-`vault:rebalance` reads the Pool state first. It exits without a simulation or transaction whenever current HF is at or above target. When HF is below target, Viem simulates the full ordered basket, broadcasts it from the managed executor, waits for confirmation, and prints the Monad testnet explorer link.
-
-## Scope and safety
-
-This is a hackathon prototype, not an audited production vault. It intentionally omits share accounting, multi-sig governance, oracle freshness checks, slippage guards, swaps, keeper redundancy, and upgradeability. The executor key is automated as requested; do not fund it with mainnet assets. A production deployment should replace it with a policy-limited signer or smart account and undergo an independent audit.
+This hackathon vault is not audited. It intentionally omits production share accounting, swaps, oracle freshness checks, slippage controls, governance, keeper redundancy, and signer hardening.

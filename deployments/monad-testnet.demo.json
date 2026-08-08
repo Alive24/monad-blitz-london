@@ -2,15 +2,27 @@
   "network": "Monad Testnet",
   "chainId": 10143,
   "deployer": "0x9f7136fc32A3c8404102dbC6207a2A899a2fB32e",
-  "testnetAavePoolHarness": "0xd554F84f63F3099109ebd77C71Ab72853a4E1f4A",
-  "managedAaveVault": "0x7A7F7d5ABe4b8B86f143B7f4b73CA1d0743C8153",
+  "testnetAavePoolHarness": "0xC0DC570Df95EE407Af4f4Acbe3a6d78cEdF204B9",
+  "managedAaveVault": "0xe05f5CfD7BF44d6Fa87b966462e2f34781828c81",
   "targetHealthFactor": "1750000000000000000",
-  "transactions": {
-    "poolDeployment": "0x4d90c9cd9e85f78a366be3d043d3572ec38d4dc5a398ae7ea5cc8ddcf47b7638",
-    "vaultDeployment": "0xe8509e4f86e0d67e7ef6f5283d9cf66725df5ab839f0b0b07cbb4239b5648eb4",
-    "initialConfiguration": "0x37e235648b2ff3416659e578a2cedeaa9e2d4445558483fec0500fbc59317db5",
-    "demoStress": "0xfe5f286738f13fc2f3119c547c8c4e9ca0d7a9ba3412939121c72c8c0f544792",
-    "demoVaultResponse": "0xbf3bc4a1e14ed63e3ca26a00d8c18f8d9bb9f87f5cfea51244d4fb6a764d4467"
+  "assets": {
+    "WETH": "0x3d19bb872937d86916fcc624b4ab7bec2e23fe11",
+    "wstETH": "0xd48f5704b9ef5886b0590b2a2045cadb4ae060ad",
+    "USDC": "0x4102cb694e1ca343211f9dab93ac71d3f407654d",
+    "AUSD": "0xca37848d3e46354db7649683893cb327892a48cb",
+    "USDe": "0x1d2fcf4e1f8d7ada259511abb0d7fc4464f0cba6"
   },
-  "warning": "The Pool is a testnet-only harness, not an Aave market. Never send assets to it."
+  "transactions": {
+    "wethDeployment": "0x07430bed8471ee4dd883d437b73c0f97f5f886514367bb8c41e59ee40a2b33ab",
+    "wstethDeployment": "0x7968bce36c11d3f2b51082591a0ed2ef6c85bc0d1ed132331af5832068d0c07c",
+    "usdcDeployment": "0x24ef6ddad7428141a2c5612d202b7504d26d998155e9634e9235ce6824ac8a18",
+    "ausdDeployment": "0x0e6e2ccb6b2d91cbd716acebda92d5991c5029e87df46ff003b7d0ac9768349e",
+    "usdeDeployment": "0x660eb2fb0dc83cc806e877a57575d41b457999c1ce16060579f5cf26b0633973",
+    "poolDeployment": "0x090451f655b99339b3cf4696a9eceef33481d0ffe0df5ac04c549dd5231ce003",
+    "vaultDeployment": "0x26f7a896172da93b273452b352d2613fc72e741821dd01739cf60a9785835f74",
+    "verifiedOracleTick": "0xd46076f99b97196e90a3bf61c2a033f003489073c256e27fae912c021bacdf73",
+    "verifiedVaultBatch": "0x64bd5924d2b3ae6f7ad7eaf9a7895fc103aaddbde1758b19d7ddfa199f635e08",
+    "latestBrowserVaultBatch": "0x142f48ade364814b068744aa9b7bd7c0fe9d8030fa655cda2be3cecb6323517e"
+  },
+  "warning": "The Pool is a testnet-only harness, not an Aave market. Never send valuable assets to it."
 }
