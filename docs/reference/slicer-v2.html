@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SLICER — Automated Aave Vault Strategy</title>
+<style>
+  :root {
+    --ground: #0A0C10;
+    --surface: #12151C;
+    --surface-2: #171B24;
+    --surface-3: #1D222C;
+    --line: #232833;
+    --line-strong: #343B49;
+    --ink: #E7EAF0;
+    --muted: #98A1B0;
+    --faint: #6B7482;
+    --amber: #F5B14C;
+    --amber-dim: #CC821E;
+    --purple: #8B79F7;
+    --blue: #52A9FF;
+    --green: #4ADE80;
+    --red: #F0655A;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--ground); scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background:
+      radial-gradient(circle at 90% 5%, rgba(139,121,247,.045), transparent 25%),
+      var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  button, input { font: inherit; }
+  button { color: inherit; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .amber { color: var(--amber); }
+  .purple { color: var(--purple); }
+
+  .app-shell { min-height: 100vh; }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    min-height: 72px;
+    display: grid;
+    grid-template-columns: 220px minmax(420px, 1fr) auto;
+    align-items: stretch;
+    border-bottom: 1px solid var(--line-strong);
+    background: rgba(10,12,16,.96);
+    backdrop-filter: blur(14px);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: .11em;
+    white-space: nowrap;
+  }
+  .brand-cut { color: var(--amber); }
+  .tabs { display: flex; align-items: stretch; gap: 28px; }
+  .tab-button {
+    position: relative;
+    appearance: none;
+    border: 0;
+    padding: 2px 8px 0;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    cursor: pointer;
+  }
+  .tab-button::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 3px;
+    background: transparent;
+  }
+  .tab-button:hover { color: var(--ink); }
+  .tab-button[aria-selected="true"] { color: var(--amber); }
+  .tab-button[aria-selected="true"]::after { background: var(--amber); }
+  .network-status {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 22px;
+    padding: 0 24px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .06em;
+    white-space: nowrap;
+  }
+  .network-item { display: inline-flex; align-items: center; gap: 9px; }
+  .monad-mark { width: 12px; height: 12px; border: 3px solid var(--purple); transform: rotate(45deg); border-radius: 2px; }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(74,222,128,.08); }
+
+  .tab-panel { animation: panel-in .2s ease-out; }
+  @keyframes panel-in { from { opacity: .5; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  .workspace {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    min-height: calc(100vh - 72px);
+  }
+  .workspace > * { min-width: 0; }
+  .side-rail {
+    border-right: 1px solid var(--line-strong);
+    background: linear-gradient(180deg, rgba(18,21,28,.35), rgba(10,12,16,0));
+    padding: 28px 24px;
+  }
+  .main-stage { min-width: 0; padding: 28px; }
+  .section-title, .panel-title {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .section-title { color: var(--ink); text-transform: none; font-size: 15px; letter-spacing: .02em; }
+  .panel-title { color: var(--muted); }
+  .rule { height: 1px; margin: 14px 0 22px; background: var(--line); }
+
+  .field { margin: 0 0 26px; }
+  .field-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+  .field-label { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .field-value { color: var(--ink); font-family: var(--mono); font-size: 20px; font-variant-numeric: tabular-nums; }
+  .money-input-wrap { position: relative; }
+  .money-input-wrap::before {
+    content: "$";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 24px;
+    transform: translateY(-50%);
+  }
+  .money-input {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 4px 4px 14px 20px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 24px;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="range"] {
+    --pct: 50%;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--amber) 0 var(--pct), var(--line-strong) var(--pct) 100%);
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 19px;
+    height: 19px;
+    border: 3px solid var(--ink);
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.6);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 3px solid var(--ink);
+    border-radius: 50%;
+    background: var(--amber);
+  }
+  .range-scale { display: flex; justify-content: space-between; margin-top: 9px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
+  .explain-box {
+    margin: 6px 0 24px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    border-radius: 3px;
+    padding: 16px;
+    background: var(--surface);
+  }
+  .explain-equation { margin-bottom: 8px; font-family: var(--mono); font-size: 13px; }
+  .explain-box p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+  .primary-button, .secondary-button {
+    width: 100%;
+    min-height: 50px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    cursor: pointer;
+  }
+  .primary-button { border: 1px solid #FFC760; background: var(--amber); color: #161109; }
+  .primary-button:hover { background: #FFC361; }
+  .primary-button:disabled { cursor: wait; opacity: .72; }
+  .secondary-button { border: 1px solid var(--line-strong); background: transparent; color: var(--ink); }
+  .secondary-button:hover { border-color: var(--muted); background: var(--surface); }
+  .button-icon { width: 18px; height: 18px; flex: 0 0 auto; }
+
+  .module { border: 1px solid var(--line-strong); border-radius: 4px; background: rgba(18,21,28,.48); overflow: hidden; }
+  .module + .module { margin-top: 14px; }
+  .module-head { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .metric-strip { display: grid; grid-template-columns: 1.15fr 1.15fr repeat(4, minmax(110px, .85fr)); }
+  .metric-cell { min-width: 0; padding: 20px 18px; border-right: 1px solid var(--line); }
+  .metric-cell:last-child { border-right: 0; }
+  .metric-label { display: block; margin-bottom: 10px; color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  .metric-value { color: var(--ink); font-family: var(--mono); font-size: clamp(18px, 1.75vw, 27px); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .asset-lockup { display: flex; align-items: center; gap: 10px; }
+  .token-icon {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    background: var(--surface-3);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .token-icon.usdc { border-color: #3D8DE0; background: #2469B8; }
+  .token-icon.purple-token { border-color: var(--purple); color: var(--purple); }
+  .token-copy strong { display: block; font-family: var(--mono); font-size: 18px; font-weight: 600; }
+  .token-copy small { display: block; margin-top: 2px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+
+  .distribution { padding: 20px 18px 22px; border-top: 1px solid var(--line); }
+  .distribution-title { margin-bottom: 13px; color: var(--muted); font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .distribution-bar { display: flex; height: 76px; border: 1px solid var(--line-strong); border-radius: 3px; overflow: hidden; }
+  .dist-supply, .dist-borrow { display: flex; align-items: center; justify-content: center; text-align: center; transition: width .25s ease; }
+  .dist-supply { background: linear-gradient(90deg, rgba(139,121,247,.28), rgba(139,121,247,.56)); border-right: 1px solid var(--purple); }
+  .dist-borrow { background: linear-gradient(90deg, rgba(82,169,255,.58), rgba(36,105,184,.6)); }
+  .dist-copy { font-family: var(--mono); font-size: 12px; }
+  .dist-copy strong { display: block; margin-bottom: 2px; }
+  .distribution-axis { display: flex; justify-content: space-between; margin-top: 9px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
+  .target-marker { margin-top: -17px; text-align: center; color: var(--amber); font-family: var(--mono); font-size: 11px; }
+
+  .data-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .data-table th, .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+  .data-table th { background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 500; }
+  .data-table td { color: var(--ink); font-size: 13px; }
+  .data-table tbody tr { cursor: pointer; transition: background .15s ease; }
+  .data-table tbody tr:hover { background: rgba(139,121,247,.05); }
+  .data-table tbody tr.selected { background: rgba(245,177,76,.055); box-shadow: inset 2px 0 var(--amber); }
+  .data-table tbody tr:last-child td { border-bottom: 0; }
+  .rank { color: var(--amber) !important; }
+  .mini-asset { display: inline-flex; align-items: center; gap: 8px; }
+  .mini-token { width: 23px; height: 23px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface-3); color: var(--ink); font-size: 9px; }
+  .mini-token.blue { background: #2469B8; }
+
+  .architecture {
+    display: grid;
+    grid-template-columns: 160px repeat(3, minmax(180px, 1fr)) minmax(220px, .9fr);
+    align-items: stretch;
+    margin-top: 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .architecture-title, .architecture-node { min-height: 92px; padding: 17px; border-right: 1px solid var(--line); }
+  .architecture-title { display: flex; align-items: center; color: var(--muted); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .architecture-node { position: relative; display: flex; align-items: center; gap: 13px; }
+  .architecture-node:last-child { border-right: 0; }
+  .architecture-node:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    z-index: 2;
+    right: -5px;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    border-top: 1px solid var(--muted);
+    border-right: 1px solid var(--muted);
+    background: var(--ground);
+    transform: translateY(-50%) rotate(45deg);
+  }
+  .architecture-icon { width: 34px; height: 34px; color: var(--amber); flex: 0 0 auto; }
+  .architecture-node:nth-last-child(2) .architecture-icon { color: var(--purple); }
+  .architecture-node:last-child .architecture-icon { color: var(--green); }
+  .architecture-copy strong { display: block; margin-bottom: 3px; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  .architecture-copy small { display: block; color: var(--muted); font-family: var(--mono); font-size: 10px; line-height: 1.5; }
+
+  /* live vault */
+  .vault-identity { margin: 22px 0; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+  .vault-address { margin: 8px 0 12px; font-family: var(--mono); font-size: 18px; }
+  .state-line { display: inline-flex; align-items: center; gap: 9px; color: var(--green); font-family: var(--mono); font-size: 12px; }
+  .threshold-list { margin: 14px 0 22px; }
+  .threshold-row { display: flex; justify-content: space-between; gap: 18px; padding: 9px 0; border-bottom: 1px solid rgba(35,40,51,.55); }
+  .threshold-row span:first-child { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .threshold-row strong { font-family: var(--mono); font-size: 15px; }
+  .rail-note { margin: 13px 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+  .no-sign { color: var(--amber); font-family: var(--mono); font-size: 11px; }
+  .live-summary { display: grid; grid-template-columns: repeat(5, 1fr); margin-bottom: 14px; }
+  .live-summary .metric-cell { padding-top: 12px; padding-bottom: 18px; }
+  .position-compare { display: grid; grid-template-columns: minmax(0, 1fr) 100px minmax(0, 1fr); padding: 20px; }
+  .position-side { min-width: 0; }
+  .position-side.proposed { color: var(--ink); }
+  .position-side h3 { margin: 0 0 16px; color: var(--muted); font-family: var(--mono); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .position-side.proposed h3 { color: var(--purple); }
+  .asset-row { display: grid; grid-template-columns: 1fr 86px 62px; gap: 12px; align-items: center; min-height: 70px; border-top: 1px solid var(--line); }
+  .asset-row:last-child { border-bottom: 1px solid var(--line); }
+  .asset-role { margin-top: 3px; font-family: var(--mono); font-size: 10px; }
+  .asset-amount { font-family: var(--mono); font-size: 13px; text-align: right; }
+  .share { font-family: var(--mono); font-size: 11px; text-align: right; }
+  .execute-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--amber); font-family: var(--mono); font-size: 10px; text-align: center; }
+  .execute-arrow svg { width: 54px; height: 30px; }
+  .live-lower { display: grid; grid-template-columns: 1fr .9fr; gap: 14px; margin-top: 14px; }
+  .trace-table td, .trace-table th { padding: 10px 13px; font-size: 10px; }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; white-space: nowrap; }
+  .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .status.verified { color: var(--green); }
+  .status.verified::before { background: var(--green); }
+  .status.ready { color: var(--amber); }
+  .status.ready::before { background: var(--amber); }
+  .status.running { color: var(--purple); }
+  .status.running::before { background: var(--purple); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .sim-result { padding-bottom: 16px; }
+  .result-status { display: flex; align-items: baseline; gap: 14px; padding: 18px; border-bottom: 1px solid var(--line); }
+  .result-status strong { color: var(--green); font-family: var(--mono); font-size: 25px; }
+  .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .result-cell { padding: 15px 18px; border-right: 1px solid var(--line); }
+  .result-cell:last-child { border-right: 0; }
+  .result-cell span { display: block; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+  .result-cell strong { display: block; margin-top: 5px; font-family: var(--mono); font-size: 16px; }
+  .guards { padding: 15px 18px 0; border-top: 1px solid var(--line); }
+  .guard { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 9px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+  .guard::before { content: "✓"; color: var(--green); font-weight: 800; }
+  .guard span:last-child { margin-left: auto; color: var(--green); }
+
+  /* stress lab */
+  .stress-workspace { grid-template-columns: 330px minmax(0, 1fr); }
+  .compact-field { margin-bottom: 20px; }
+  .compact-field .field-head { margin-bottom: 8px; }
+  .compact-field .field-value { min-width: 58px; padding: 3px 7px; border: 1px solid var(--line); color: var(--amber); font-size: 13px; text-align: right; }
+  .compact-field .range-scale { font-size: 9px; }
+  .soft-liquidation-box { margin: 24px -8px 0; border: 1px solid var(--line-strong); border-radius: 4px; padding: 16px; }
+  .switch-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+  .switch-line strong { font-family: var(--mono); font-size: 12px; }
+  .toggle { position: relative; width: 38px; height: 21px; }
+  .toggle input { position: absolute; opacity: 0; }
+  .toggle-track { position: absolute; inset: 0; border-radius: 11px; background: var(--line-strong); cursor: pointer; }
+  .toggle-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: var(--muted); transition: .2s; }
+  .toggle input:checked + .toggle-track { background: #255B35; }
+  .toggle input:checked + .toggle-track::after { left: 20px; background: var(--green); }
+  .stress-stage { padding: 14px; }
+  .stress-grid { display: grid; grid-template-columns: minmax(0, 1fr) 250px; border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; }
+  .chart-area { min-width: 0; padding: 16px; }
+  .chart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
+  .chart-mode { color: var(--amber); font-family: var(--mono); font-size: 11px; font-weight: 700; }
+  .legend { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; color: var(--muted); font-family: var(--mono); font-size: 9px; }
+  .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+  .legend-swatch { width: 19px; height: 2px; background: var(--amber); }
+  .legend-swatch.purple { background: var(--purple); }
+  .legend-swatch.gray { background: var(--faint); }
+  .play-state { min-width: 122px; padding: 5px 8px; border: 1px solid var(--line); color: var(--muted); font-family: var(--mono); font-size: 10px; text-align: center; }
+  .chart-block + .chart-block { margin-top: 18px; }
+  .chart-label { margin-bottom: 4px; color: var(--ink); font-family: var(--mono); font-size: 11px; }
+  canvas { display: block; width: 100%; height: 260px; }
+  #riskChart { height: 190px; }
+  .event-stream { border-left: 1px solid var(--line); background: rgba(18,21,28,.45); padding: 16px; }
+  .event-stream h3 { margin: 0 0 20px; font-family: var(--mono); font-size: 12px; }
+  .event { position: relative; margin: 0 0 21px; padding-left: 20px; }
+  .event::before { content: ""; position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--ground); }
+  .event.active::before { border-color: var(--green); background: var(--green); }
+  .event.alert::before { border-color: var(--red); background: var(--red); }
+  .event.rebalance::before { border-color: var(--amber); background: var(--amber); }
+  .event time { display: block; color: var(--faint); font-family: var(--mono); font-size: 9px; }
+  .event strong { display: block; margin: 3px 0; font-family: var(--mono); font-size: 11px; }
+  .event p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+  .comparison { margin-top: 14px; }
+  .comparison-note { padding: 10px 16px; color: var(--faint); font-family: var(--mono); font-size: 9px; border-top: 1px solid var(--line); }
+
+  @media (max-width: 1180px) {
+    .topbar { grid-template-columns: 180px 1fr; }
+    .network-status { grid-column: 1 / -1; min-height: 38px; border-top: 1px solid var(--line); justify-content: center; padding: 0 16px; }
+    .workspace { min-height: calc(100vh - 110px); }
+    .metric-strip { grid-template-columns: repeat(3, 1fr); }
+    .metric-cell:nth-child(3) { border-right: 0; }
+    .metric-cell:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+    .architecture { grid-template-columns: repeat(2, 1fr); }
+    .architecture-title { grid-column: 1 / -1; min-height: 45px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .architecture-node { border-bottom: 1px solid var(--line); }
+    .architecture-node::after { display: none; }
+    .live-lower { grid-template-columns: 1fr; }
+    .stress-grid { grid-template-columns: 1fr; }
+    .event-stream { border-left: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 20px; }
+    .event-stream h3 { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 850px) {
+    .topbar { position: static; display: flex; flex-wrap: wrap; }
+    .brand { min-height: 64px; flex: 1; }
+    .tabs { order: 3; width: 100%; min-height: 54px; justify-content: center; gap: 12px; border-top: 1px solid var(--line); }
+    .network-status { order: 2; width: auto; grid-column: auto; border-top: 0; }
+    .network-status .network-item:nth-child(2) { display: none; }
+    .workspace, .stress-workspace { grid-template-columns: minmax(0, 1fr); }
+    .side-rail { border-right: 0; border-bottom: 1px solid var(--line-strong); }
+    .main-stage, .stress-stage { padding: 18px; }
+    .live-summary { grid-template-columns: repeat(2, 1fr); }
+    .live-summary .metric-cell { border-bottom: 1px solid var(--line); }
+    .position-compare { grid-template-columns: 1fr; gap: 18px; }
+    .execute-arrow { transform: rotate(90deg); }
+    .stress-workspace .side-rail { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 24px; }
+    .stress-workspace .side-rail > .section-title,
+    .stress-workspace .side-rail > .rule,
+    .stress-workspace .side-rail > .button-stack,
+    .stress-workspace .side-rail > .soft-liquidation-box { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 620px) {
+    body { font-size: 14px; }
+    .brand { min-height: 56px; padding: 0 16px; font-size: 23px; }
+    .network-status { padding: 0 14px; gap: 8px; }
+    .network-status .network-item:first-child { display: none; }
+    .tabs { overflow-x: auto; justify-content: flex-start; padding: 0 12px; }
+    .tab-button { min-width: 118px; }
+    .side-rail { padding: 22px 18px; }
+    .main-stage, .stress-stage { padding: 12px; }
+    .metric-strip { grid-template-columns: repeat(2, 1fr); }
+    .metric-cell, .metric-cell:nth-child(3) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .metric-cell:nth-child(2n) { border-right: 0; }
+    .distribution-bar { height: 98px; }
+    .data-table { min-width: 690px; }
+    .table-scroll { overflow-x: auto; }
+    .architecture { grid-template-columns: 1fr; }
+    .architecture-title, .architecture-node { grid-column: 1; border-right: 0; }
+    .result-grid { grid-template-columns: 1fr; }
+    .result-cell { border-right: 0; border-bottom: 1px solid var(--line); }
+    .event-stream { grid-template-columns: 1fr; }
+    .stress-workspace .side-rail { grid-template-columns: minmax(0, 1fr); }
+    .stress-workspace .side-rail > * { grid-column: 1 !important; }
+    .legend { gap: 10px; }
+    .chart-toolbar { align-items: flex-start; flex-direction: column; }
+    canvas { height: 220px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand" aria-label="Slicer">SLI<span class="brand-cut">/</span>CER</div>
+    <nav class="tabs" role="tablist" aria-label="Slicer tools">
+      <button class="tab-button" role="tab" id="tab-optimizer" aria-controls="panel-optimizer" aria-selected="true" data-tab="optimizer">OPTIMIZER</button>
+      <button class="tab-button" role="tab" id="tab-vault" aria-controls="panel-vault" aria-selected="false" data-tab="vault">LIVE VAULT</button>
+      <button class="tab-button" role="tab" id="tab-stress" aria-controls="panel-stress" aria-selected="false" data-tab="stress">STRESS LAB</button>
+    </nav>
+    <div class="network-status" aria-label="Network status">
+      <span class="network-item"><span class="monad-mark" aria-hidden="true"></span> MONAD MAINNET</span>
+      <span class="network-item"><span class="purple">▲</span> AAVE V3</span>
+      <span class="network-item">BLOCK <span id="liveBlock">42,891,204</span> <span class="live-dot" aria-label="live"></span></span>
+    </div>
+  </header>
+
+  <section class="tab-panel" id="panel-optimizer" role="tabpanel" aria-labelledby="tab-optimizer">
+    <div class="workspace">
+      <aside class="side-rail">
+        <h1 class="section-title">Strategy constraints</h1>
+        <div class="rule"></div>
+
+        <div class="field">
+          <label class="field-label" for="vaultEquity">Vault equity</label>
+          <div class="money-input-wrap">
+            <input class="money-input" id="vaultEquity" type="text" value="10,000" inputmode="decimal" aria-describedby="equityHint">
+          </div>
+          <span id="equityHint" hidden>Enter vault equity in US dollars.</span>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label class="field-label" for="maxLtv">Maximum LTV</label>
+            <output class="field-value" id="maxLtvOut">52%</output>
+          </div>
+          <input id="maxLtv" type="range" min="20" max="70" value="52">
+          <div class="range-scale"><span>20%</span><span class="amber">risk ceiling</span><span>70%</span></div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label class="field-label" for="targetBuffer">Target buffer</label>
+            <output class="field-value" id="targetBufferOut">3%</output>
+          </div>
+          <input id="targetBuffer" type="range" min="0" max="10" value="3">
+          <div class="range-scale"><span>0%</span><span class="amber">safety margin</span><span>10%</span></div>
+        </div>
+
+        <div class="explain-box">
+          <div class="explain-equation">Maximum LTV <span id="explainMax">52%</span> → Working target <strong class="amber" id="workingTarget">49%</strong></div>
+          <p>The maximum is the vault's hard risk ceiling. Automation aims below it by the target buffer, leaving room for oracle movement, rate changes and execution slippage.</p>
+        </div>
+
+        <button class="primary-button" id="runOptimizer" type="button">
+          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 17h16M14 7l3-3m-3 3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>RUN OPTIMIZER</span>
+        </button>
+        <p class="rail-note mono">Latest Aave reserve snapshot · pairwise search · cap and health-factor constrained.</p>
+      </aside>
+
+      <main class="main-stage">
+        <section class="module" aria-labelledby="recommendedTitle">
+          <div class="module-head"><h2 class="panel-title" id="recommendedTitle">Recommended strategy</h2></div>
+          <div class="metric-strip">
+            <div class="metric-cell">
+              <span class="metric-label">Supply</span>
+              <div class="asset-lockup"><span class="token-icon">ETH</span><span class="token-copy"><strong id="bestSupply">WETH</strong><small>Wrapped Ether</small></span></div>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">Borrow</span>
+              <div class="asset-lockup"><span class="token-icon usdc">$</span><span class="token-copy"><strong id="bestBorrow">USDC</strong><small>USD Coin</small></span></div>
+            </div>
+            <div class="metric-cell"><span class="metric-label">Target supply</span><span class="metric-value" id="targetSupply">$19,608</span></div>
+            <div class="metric-cell"><span class="metric-label">Target borrow</span><span class="metric-value" id="targetBorrow">$9,608</span></div>
+            <div class="metric-cell"><span class="metric-label">Health factor</span><span class="metric-value green" id="targetHealth">1.71</span></div>
+            <div class="metric-cell"><span class="metric-label">Net APY</span><span class="metric-value green" id="targetApy">8.73%</span></div>
+          </div>
+          <div class="distribution">
+            <div class="distribution-title">Asset distribution · gross exposure</div>
+            <div class="distribution-bar" aria-label="Target gross exposure distribution">
+              <div class="dist-supply" id="distSupply" style="width:67.1%"><span class="dist-copy"><strong>WETH SUPPLIED</strong><span id="distSupplyCopy">$19,608 · 67.1%</span></span></div>
+              <div class="dist-borrow" id="distBorrow" style="width:32.9%"><span class="dist-copy"><strong>USDC BORROWED</strong><span id="distBorrowCopy">$9,608 · 32.9%</span></span></div>
+            </div>
+            <div class="distribution-axis"><span>0%</span><span>100%</span></div>
+            <div class="target-marker"><span id="targetMarker">49%</span> LTV · WORKING TARGET</div>
+          </div>
+        </section>
+
+        <section class="module" aria-labelledby="rankingTitle">
+          <div class="module-head"><h2 class="panel-title" id="rankingTitle">Strategy rankings <span class="faint" id="lastRun">· LIVE RESERVE SNAPSHOT</span></h2></div>
+          <div class="table-scroll">
+            <table class="data-table" id="strategyTable">
+              <thead><tr><th>Rank</th><th>Supply</th><th>Borrow</th><th>Net APY</th><th>Health</th><th>Capacity</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="architecture" aria-label="System architecture">
+          <div class="architecture-title">System architecture</div>
+          <div class="architecture-node">
+            <svg class="architecture-icon" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="6" width="26" height="28" fill="none" stroke="currentColor"/><circle cx="20" cy="20" r="6" fill="none" stroke="currentColor"/><path d="M20 14v12M14 20h12" stroke="currentColor"/></svg>
+            <span class="architecture-copy"><strong>MANAGED VAULT</strong><small>User capital isolated<br>Strategy-owned position</small></span>
+          </div>
+          <div class="architecture-node">
+            <svg class="architecture-icon" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="9" fill="none" stroke="currentColor"/><path d="M20 2v6M20 32v6M2 20h6M32 20h6M7 7l4 4M29 29l4 4M33 7l-4 4M11 29l-4 4" stroke="currentColor"/></svg>
+            <span class="architecture-copy"><strong>AUTOMATED EXECUTOR</strong><small>Policy engine monitors<br>No wallet signature flow</small></span>
+          </div>
+          <div class="architecture-node">
+            <svg class="architecture-icon" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="5" width="26" height="30" fill="none" stroke="currentColor"/><path d="M16 14l-5 6 5 6M24 14l5 6-5 6" fill="none" stroke="currentColor"/></svg>
+            <span class="architecture-copy"><strong>MAINNET SIMULATOR</strong><small>Contract-based preview<br>Guards before execution</small></span>
+          </div>
+          <div class="architecture-node">
+            <svg class="architecture-icon" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3l13 6v10c0 8-5 14-13 18C12 33 7 27 7 19V9l13-6z" fill="none" stroke="currentColor"/><path d="M13 20l5 5 9-10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span class="architecture-copy"><strong>CREDENTIAL BOUNDARY</strong><small>Executor key stays server-side<br>Never enters this browser</small></span>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-vault" role="tabpanel" aria-labelledby="tab-vault" hidden>
+    <div class="workspace">
+      <aside class="side-rail">
+        <h1 class="section-title amber">Vault command</h1>
+        <div class="vault-identity">
+          <span class="field-label">Vault address</span>
+          <div class="vault-address">0x71C4…92AF</div>
+          <span class="state-line"><span class="live-dot"></span> ACTIVE · AUTOMATION ARMED</span>
+        </div>
+        <h2 class="section-title">Automation thresholds</h2>
+        <div class="threshold-list">
+          <div class="threshold-row"><span>Maximum LTV</span><strong id="vaultMaxLtv">52%</strong></div>
+          <div class="threshold-row"><span>Working target</span><strong id="vaultWorkingTarget">49%</strong></div>
+          <div class="threshold-row"><span>Rebalance band</span><strong>±2%</strong></div>
+          <div class="threshold-row"><span>Minimum health</span><strong>1.50</strong></div>
+        </div>
+        <p class="rail-note">The executor reads the latest Aave state, runs the optimizer, calls the mainnet simulation contract, checks policy guards, and submits through the managed vault.</p>
+        <button class="primary-button" id="simulateExecute" type="button">
+          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L5 14h6l-1 8 9-13h-6z" fill="currentColor"/></svg>
+          <span>SIMULATE &amp; EXECUTE</span>
+        </button>
+        <p class="rail-note">Executor credentials are loaded by the secure automation service—not the web client.</p>
+        <p class="no-sign">NO WALLET SIGNATURE REQUIRED</p>
+      </aside>
+
+      <main class="main-stage">
+        <h2 class="panel-title" style="margin: 0 0 8px">Live position</h2>
+        <div class="live-summary">
+          <div class="metric-cell"><span class="metric-label">Total supplied</span><span class="metric-value" id="liveSupplied">$18,920</span></div>
+          <div class="metric-cell"><span class="metric-label">Total borrowed</span><span class="metric-value" id="liveBorrowed">$8,740</span></div>
+          <div class="metric-cell"><span class="metric-label">Current LTV</span><span class="metric-value green" id="liveLtv">46.2%</span></div>
+          <div class="metric-cell"><span class="metric-label">Health factor</span><span class="metric-value green" id="liveHealth">1.81</span></div>
+          <div class="metric-cell"><span class="metric-label">Net APY</span><span class="metric-value green">8.41%</span></div>
+        </div>
+
+        <section class="module" aria-label="Current and proposed position">
+          <div class="position-compare">
+            <div class="position-side">
+              <h3>Current position · live</h3>
+              <div class="asset-row">
+                <div><div class="mini-asset"><span class="mini-token">ETH</span><strong class="mono">WETH</strong></div><div class="asset-role green">SUPPLY</div></div>
+                <div class="asset-amount" id="currentSupplyAmount">$18,920</div><div class="share">68.4%</div>
+              </div>
+              <div class="asset-row">
+                <div><div class="mini-asset"><span class="mini-token blue">$</span><strong class="mono">USDC</strong></div><div class="asset-role red">BORROW</div></div>
+                <div class="asset-amount" id="currentBorrowAmount">$8,740</div><div class="share">31.6%</div>
+              </div>
+            </div>
+            <div class="execute-arrow">
+              <span>EXECUTE<br>REBALANCE</span>
+              <svg viewBox="0 0 56 30" aria-hidden="true"><path d="M2 15h45M36 4l11 11-11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="position-side proposed">
+              <h3>Proposed position · post-execution</h3>
+              <div class="asset-row">
+                <div><div class="mini-asset"><span class="mini-token">ETH</span><strong class="mono">WETH</strong></div><div class="asset-role green">SUPPLY</div></div>
+                <div class="asset-amount green" id="proposedSupplyAmount">$19,608</div><div class="share" id="proposedSupplyShare">67.1%</div>
+              </div>
+              <div class="asset-row">
+                <div><div class="mini-asset"><span class="mini-token blue">$</span><strong class="mono">USDC</strong></div><div class="asset-role red">BORROW</div></div>
+                <div class="asset-amount red" id="proposedBorrowAmount">$9,608</div><div class="share" id="proposedBorrowShare">32.9%</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="live-lower">
+          <section class="module" aria-labelledby="traceTitle">
+            <div class="module-head"><h2 class="panel-title amber" id="traceTitle">Execution trace</h2></div>
+            <div class="table-scroll">
+              <table class="data-table trace-table">
+                <thead><tr><th>Step</th><th>Action</th><th>Status</th><th>Detail</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Read latest Aave state</td><td><span class="status verified" id="step1">VERIFIED</span></td><td id="step1Detail">Block 42,891,204</td></tr>
+                  <tr><td>2</td><td>Run optimizer</td><td><span class="status verified" id="step2">VERIFIED</span></td><td>Target and guards resolved</td></tr>
+                  <tr><td>3</td><td>Call mainnet simulator</td><td><span class="status ready" id="step3">READY</span></td><td>Contract simulation queued</td></tr>
+                  <tr><td>4</td><td>Execute through vault</td><td><span class="status" id="step4">PENDING</span></td><td>Executor policy gated</td></tr>
+                  <tr><td>5</td><td>Confirm new state</td><td><span class="status" id="step5">PENDING</span></td><td>Post-execution read</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="module sim-result" aria-labelledby="simTitle">
+            <div class="module-head"><h2 class="panel-title purple" id="simTitle">Mainnet simulation result</h2></div>
+            <div class="result-status"><span class="metric-label">Status</span><strong id="simulationStatus">READY</strong></div>
+            <div class="result-grid">
+              <div class="result-cell"><span>Gas estimate</span><strong id="gasEstimate">—</strong></div>
+              <div class="result-cell"><span>Projected health</span><strong id="simHealth">1.71</strong></div>
+              <div class="result-cell"><span>Projected LTV</span><strong id="simLtv">49.0%</strong></div>
+            </div>
+            <div class="guards">
+              <div class="panel-title">Guard conditions</div>
+              <div class="guard"><span>Health factor ≥ 1.50</span><span id="guardHealth">1.71</span></div>
+              <div class="guard"><span>LTV ≤ maximum LTV</span><span id="guardLtv">49.0% / 52%</span></div>
+              <div class="guard"><span>Slippage ≤ 0.50%</span><span>0.12%</span></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="architecture" aria-label="Live automation status">
+          <div class="architecture-title amber">Architecture</div>
+          <div class="architecture-node"><span class="architecture-copy"><strong>NETWORK</strong><small>Monad mainnet<br>Live RPC state</small></span></div>
+          <div class="architecture-node"><span class="architecture-copy"><strong>PROTOCOL</strong><small>Aave V3<br>Managed position</small></span></div>
+          <div class="architecture-node"><span class="architecture-copy"><strong>AUTOMATION</strong><small>Executor active<br>Policy constrained</small></span></div>
+          <div class="architecture-node"><span class="architecture-copy"><strong>EXECUTOR KEY</strong><small>Server-side secret<br>Not present in page</small></span></div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-stress" role="tabpanel" aria-labelledby="tab-stress" hidden>
+    <div class="workspace stress-workspace">
+      <aside class="side-rail">
+        <h1 class="section-title">Scenario controls</h1>
+        <div class="rule"></div>
+        <div class="compact-field field">
+          <div class="field-head"><label class="field-label" for="shockRange">Price shock</label><output class="field-value red" id="shockOut">−18%</output></div>
+          <input id="shockRange" type="range" min="5" max="40" value="18">
+          <div class="range-scale"><span>−5%</span><span>−20%</span><span>−40%</span></div>
+        </div>
+        <div class="compact-field field">
+          <div class="field-head"><label class="field-label" for="recoveryRange">Recovery</label><output class="field-value green" id="recoveryOut">+9%</output></div>
+          <input id="recoveryRange" type="range" min="0" max="40" value="9">
+          <div class="range-scale"><span>0%</span><span>+20%</span><span>+40%</span></div>
+        </div>
+        <div class="compact-field field">
+          <div class="field-head"><label class="field-label" for="stressLtv">Maximum LTV</label><output class="field-value" id="stressLtvOut">52%</output></div>
+          <input id="stressLtv" type="range" min="30" max="70" value="52">
+          <div class="range-scale"><span>30%</span><span>50%</span><span>70%</span></div>
+        </div>
+        <div class="compact-field field">
+          <div class="field-head"><label class="field-label" for="bandRange">Rebalance band</label><output class="field-value" id="bandOut">±2%</output></div>
+          <input id="bandRange" type="range" min="1" max="5" value="2">
+          <div class="range-scale"><span>±1%</span><span>±3%</span><span>±5%</span></div>
+        </div>
+        <div class="compact-field field">
+          <div class="field-head"><label class="field-label" for="horizonRange">Horizon</label><output class="field-value" id="horizonOut">30d</output></div>
+          <input id="horizonRange" type="range" min="7" max="90" step="1" value="30">
+          <div class="range-scale"><span>7d</span><span>30d</span><span>90d</span></div>
+        </div>
+        <div class="button-stack">
+          <button class="primary-button" id="playScenario" type="button">
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>
+            <span>PLAY SCENARIO</span>
+          </button>
+          <button class="secondary-button" id="resetScenario" type="button" style="margin-top:9px">
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7a8 8 0 1 1-1 8M5 7V2M5 7h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <span>RESET</span>
+          </button>
+        </div>
+        <div class="soft-liquidation-box">
+          <div class="switch-line">
+            <strong>Slicer soft-liquidation</strong>
+            <label class="toggle"><input id="slicerToggle" type="checkbox" checked><span class="toggle-track"></span><span class="sr-only" hidden>Enable Slicer soft-liquidation</span></label>
+          </div>
+          <div class="compact-field field" style="margin-bottom:12px">
+            <div class="field-head"><label class="field-label" for="sliceTrigger">Trigger health</label><output class="field-value" id="sliceTriggerOut">1.45</output></div>
+            <input id="sliceTrigger" type="range" min="105" max="150" value="145">
+            <div class="range-scale"><span>1.05</span><span>1.25</span><span>1.50</span></div>
+          </div>
+          <p class="rail-note" style="margin-bottom:0">When health crosses the trigger, the managed vault incrementally deleverages until it returns inside policy.</p>
+        </div>
+      </aside>
+
+      <main class="stress-stage">
+        <section class="stress-grid">
+          <div class="chart-area">
+            <div class="chart-toolbar">
+              <span class="chart-mode">FORWARD STRESS SIMULATION</span>
+              <div class="legend" aria-label="Chart legend">
+                <span class="legend-item"><span class="legend-swatch"></span>DYNAMIC VAULT</span>
+                <span class="legend-item"><span class="legend-swatch purple"></span>STATIC AAVE</span>
+                <span class="legend-item"><span class="legend-swatch gray"></span>HOLD</span>
+              </div>
+              <span class="play-state" id="playState">STATUS: READY</span>
+            </div>
+            <div class="chart-block"><div class="chart-label">Equity value (USD)</div><canvas id="performanceChart" aria-label="Forward simulated equity value comparison"></canvas></div>
+            <div class="chart-block"><div class="chart-label">Health factor · dynamic vault vs static Aave</div><canvas id="riskChart" aria-label="Forward simulated health factor comparison"></canvas></div>
+          </div>
+          <aside class="event-stream" aria-label="Simulation event stream">
+            <h3>Event stream</h3>
+            <div class="event active"><time>DAY 00 · 00:00</time><strong>Scenario initialized</strong><p>Forward simulation is ready.</p></div>
+            <div class="event alert"><time id="shockEventTime">DAY 01 · 00:00</time><strong>Shock phase</strong><p id="shockEventText">Price shock −18% applied over 10 days.</p></div>
+            <div class="event rebalance"><time id="rebalanceEventTime">DAY 08 · 14:32</time><strong>Rebalance triggered</strong><p id="rebalanceEventText">Health crossed the Slicer trigger.</p></div>
+            <div class="event"><time id="simEventTime">DAY 08 · 14:33</time><strong>Mainnet simulation passed</strong><p>Managed-vault action bundle validated.</p></div>
+            <div class="event"><time id="restoreEventTime">DAY 08 · 14:34</time><strong>Health restored</strong><p>Position returned inside policy.</p></div>
+          </aside>
+        </section>
+
+        <section class="module comparison" aria-labelledby="comparisonTitle">
+          <div class="module-head"><h2 class="panel-title" id="comparisonTitle">Strategy comparison · forward stress simulation</h2></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Strategy</th><th>Ending equity</th><th>Return</th><th>Max drawdown</th><th>Min health</th><th>Liquidated</th></tr></thead>
+              <tbody>
+                <tr class="selected"><td class="amber">DYNAMIC VAULT · SLICER ON</td><td id="dynamicEnd">—</td><td class="green" id="dynamicReturn">—</td><td class="red" id="dynamicDrawdown">—</td><td class="green" id="dynamicMinHealth">—</td><td class="green" id="dynamicLiquidated">NO</td></tr>
+                <tr><td><span class="purple">●</span> STATIC AAVE · NO AUTOMATION</td><td id="staticEnd">—</td><td id="staticReturn">—</td><td class="red" id="staticDrawdown">—</td><td id="staticMinHealth">—</td><td id="staticLiquidated">—</td></tr>
+                <tr><td><span class="faint">●</span> HOLD · NO DEBT</td><td id="holdEnd">—</td><td id="holdReturn">—</td><td class="red" id="holdDrawdown">—</td><td class="faint">N/A</td><td class="green">NO</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="comparison-note">Synthetic forward scenario using current assumptions. This is not historical or guaranteed performance.</div>
+        </section>
+      </main>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var state = {
+    equity: 10000,
+    maxLtv: 52,
+    buffer: 3,
+    selectedStrategy: 0,
+    currentSupply: 18920,
+    currentBorrow: 8740,
+    playTimer: null,
+    playDay: 30
+  };
+
+  var strategies = [
+    { supply: "WETH", supplyName: "Wrapped Ether", borrow: "USDC", supplyApy: 7.60, borrowApy: 6.42, lt: .84, capacity: "$2.31M" },
+    { supply: "wstETH", supplyName: "Wrapped stETH", borrow: "USDC", supplyApy: 7.38, borrowApy: 6.42, lt: .78, capacity: "$1.97M" },
+    { supply: "cbETH", supplyName: "Coinbase ETH", borrow: "USDC", supplyApy: 7.17, borrowApy: 6.42, lt: .75, capacity: "$1.63M" },
+    { supply: "WETH", supplyName: "Wrapped Ether", borrow: "DAI", supplyApy: 7.60, borrowApy: 7.99, lt: .76, capacity: "$1.48M" }
+  ];
+
+  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+  function workingLtv() { return clamp(state.maxLtv - state.buffer, 5, 69); }
+  function strategyMetrics(strategy) {
+    var ltv = workingLtv() / 100;
+    var supply = state.equity / (1 - ltv);
+    var borrow = supply - state.equity;
+    var net = (strategy.supplyApy - ltv * strategy.borrowApy) / (1 - ltv);
+    var health = strategy.lt / ltv;
+    return { ltv: ltv, supply: supply, borrow: borrow, net: net, health: health };
+  }
+  function setRangeFill(input) {
+    var min = Number(input.min || 0), max = Number(input.max || 100), value = Number(input.value);
+    input.style.setProperty("--pct", ((value - min) / (max - min) * 100) + "%");
+  }
+  document.querySelectorAll('input[type="range"]').forEach(setRangeFill);
+
+  function renderStrategies() {
+    var tbody = $("strategyTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    strategies.forEach(function (strategy, i) {
+      var m = strategyMetrics(strategy);
+      var tr = document.createElement("tr");
+      tr.className = i === state.selectedStrategy ? "selected" : "";
+      tr.tabIndex = 0;
+      tr.innerHTML =
+        '<td class="' + (i === 0 ? 'rank' : '') + '">' + (i + 1) + '</td>' +
+        '<td><span class="mini-asset"><span class="mini-token">' + (strategy.supply === "WETH" ? "ETH" : strategy.supply.slice(0,3)) + '</span>' + strategy.supply + '</span></td>' +
+        '<td><span class="mini-asset"><span class="mini-token blue">$</span>' + strategy.borrow + '</span></td>' +
+        '<td class="green">' + m.net.toFixed(2) + '%</td>' +
+        '<td class="' + (m.health >= 1.5 ? 'green' : 'amber') + '">' + m.health.toFixed(2) + '</td>' +
+        '<td>' + strategy.capacity + '</td>';
+      function select() { state.selectedStrategy = i; renderAllOptimizer(); }
+      tr.addEventListener("click", select);
+      tr.addEventListener("keydown", function (event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderAllOptimizer() {
+    var strategy = strategies[state.selectedStrategy];
+    var m = strategyMetrics(strategy);
+    var gross = m.supply + m.borrow;
+    var supplyShare = m.supply / gross * 100;
+    var borrowShare = 100 - supplyShare;
+    $("maxLtvOut").textContent = state.maxLtv + "%";
+    $("targetBufferOut").textContent = state.buffer + "%";
+    $("explainMax").textContent = state.maxLtv + "%";
+    $("workingTarget").textContent = workingLtv() + "%";
+    $("targetMarker").textContent = workingLtv() + "%";
+    $("bestSupply").textContent = strategy.supply;
+    $("bestBorrow").textContent = strategy.borrow;
+    $("targetSupply").textContent = money.format(m.supply);
+    $("targetBorrow").textContent = money.format(m.borrow);
+    $("targetHealth").textContent = m.health.toFixed(2);
+    $("targetApy").textContent = m.net.toFixed(2) + "%";
+    $("distSupply").style.width = supplyShare.toFixed(1) + "%";
+    $("distBorrow").style.width = borrowShare.toFixed(1) + "%";
+    $("distSupplyCopy").textContent = money.format(m.supply) + " · " + supplyShare.toFixed(1) + "%";
+    $("distBorrowCopy").textContent = money.format(m.borrow) + " · " + borrowShare.toFixed(1) + "%";
+    $("vaultMaxLtv").textContent = state.maxLtv + "%";
+    $("vaultWorkingTarget").textContent = workingLtv() + "%";
+    $("proposedSupplyAmount").textContent = money.format(m.supply);
+    $("proposedBorrowAmount").textContent = money.format(m.borrow);
+    $("proposedSupplyShare").textContent = supplyShare.toFixed(1) + "%";
+    $("proposedBorrowShare").textContent = borrowShare.toFixed(1) + "%";
+    $("simHealth").textContent = m.health.toFixed(2);
+    $("simLtv").textContent = (m.ltv * 100).toFixed(1) + "%";
+    $("guardHealth").textContent = m.health.toFixed(2);
+    $("guardLtv").textContent = (m.ltv * 100).toFixed(1) + "% / " + state.maxLtv + "%";
+    renderStrategies();
+  }
+
+  $("vaultEquity").addEventListener("focus", function () { this.value = String(state.equity); });
+  $("vaultEquity").addEventListener("blur", function () { this.value = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(state.equity); });
+  $("vaultEquity").addEventListener("input", function () {
+    state.equity = clamp(Number(this.value.replace(/,/g, "")) || 100, 100, 100000000);
+    renderAllOptimizer();
+  });
+  $("maxLtv").addEventListener("input", function () {
+    state.maxLtv = Number(this.value); setRangeFill(this); $("stressLtv").value = state.maxLtv; setRangeFill($("stressLtv")); $("stressLtvOut").textContent = state.maxLtv + "%"; renderAllOptimizer(); drawStress();
+  });
+  $("targetBuffer").addEventListener("input", function () { state.buffer = Number(this.value); setRangeFill(this); renderAllOptimizer(); });
+  $("runOptimizer").addEventListener("click", function () {
+    var button = this, label = button.querySelector("span");
+    button.disabled = true; label.textContent = "SCANNING AAVE RESERVES";
+    window.setTimeout(function () {
+      strategies.sort(function (a, b) { return strategyMetrics(b).net - strategyMetrics(a).net; });
+      state.selectedStrategy = 0;
+      $("lastRun").textContent = "· UPDATED AT BLOCK " + $("liveBlock").textContent;
+      renderAllOptimizer();
+      label.textContent = "OPTIMIZER COMPLETE";
+      window.setTimeout(function () { button.disabled = false; label.textContent = "RUN OPTIMIZER"; }, 900);
+    }, reducedMotion ? 0 : 750);
+  });
+
+  document.querySelectorAll(".tab-button").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var target = button.dataset.tab;
+      document.querySelectorAll(".tab-button").forEach(function (b) { b.setAttribute("aria-selected", String(b === button)); });
+      document.querySelectorAll(".tab-panel").forEach(function (panel) { panel.hidden = panel.id !== "panel-" + target; });
+      if (target === "stress") window.setTimeout(function () { drawStress(); }, 20);
+    });
+  });
+
+  function resetExecutionTrace() {
+    [["step1","VERIFIED","verified"],["step2","VERIFIED","verified"],["step3","READY","ready"],["step4","PENDING",""] ,["step5","PENDING",""]].forEach(function (s) {
+      var el = $(s[0]); el.textContent = s[1]; el.className = "status " + s[2];
+    });
+    $("simulationStatus").textContent = "READY";
+    $("simulationStatus").style.color = "var(--amber)";
+    $("gasEstimate").textContent = "—";
+  }
+
+  $("simulateExecute").addEventListener("click", function () {
+    var button = this, label = button.querySelector("span");
+    var strategy = strategies[state.selectedStrategy], m = strategyMetrics(strategy);
+    resetExecutionTrace();
+    button.disabled = true; label.textContent = "SIMULATING ON MAINNET";
+    $("step3").textContent = "RUNNING"; $("step3").className = "status running";
+    $("simulationStatus").textContent = "SIMULATING"; $("simulationStatus").style.color = "var(--purple)";
+    var t = reducedMotion ? 0 : 650;
+    window.setTimeout(function () {
+      $("step3").textContent = "VERIFIED"; $("step3").className = "status verified";
+      $("simulationStatus").textContent = "PASS"; $("simulationStatus").style.color = "var(--green)";
+      $("gasEstimate").textContent = "412,538";
+      $("step4").textContent = "RUNNING"; $("step4").className = "status running";
+      label.textContent = "EXECUTING THROUGH VAULT";
+    }, t);
+    window.setTimeout(function () {
+      $("step4").textContent = "VERIFIED"; $("step4").className = "status verified";
+      $("step5").textContent = "RUNNING"; $("step5").className = "status running";
+      label.textContent = "CONFIRMING NEW STATE";
+    }, t * 2);
+    window.setTimeout(function () {
+      $("step5").textContent = "VERIFIED"; $("step5").className = "status verified";
+      state.currentSupply = m.supply; state.currentBorrow = m.borrow;
+      $("liveSupplied").textContent = money.format(m.supply);
+      $("liveBorrowed").textContent = money.format(m.borrow);
+      $("liveLtv").textContent = (m.ltv * 100).toFixed(1) + "%";
+      $("liveHealth").textContent = m.health.toFixed(2);
+      $("currentSupplyAmount").textContent = money.format(m.supply);
+      $("currentBorrowAmount").textContent = money.format(m.borrow);
+      button.disabled = false; label.textContent = "EXECUTION CONFIRMED";
+      window.setTimeout(function () { label.textContent = "SIMULATE & EXECUTE"; }, 1500);
+    }, t * 3);
+  });
+
+  var stressInputs = {
+    shock: $("shockRange"), recovery: $("recoveryRange"), ltv: $("stressLtv"), band: $("bandRange"), horizon: $("horizonRange"), trigger: $("sliceTrigger")
+  };
+
+  function stressSettings() {
+    return {
+      shock: Number(stressInputs.shock.value) / 100,
+      recovery: Number(stressInputs.recovery.value) / 100,
+      maxLtv: Number(stressInputs.ltv.value) / 100,
+      band: Number(stressInputs.band.value) / 100,
+      horizon: Number(stressInputs.horizon.value),
+      trigger: Number(stressInputs.trigger.value) / 100,
+      slicer: $("slicerToggle").checked
+    };
+  }
+
+  function buildStressData() {
+    var s = stressSettings(), count = Math.max(30, s.horizon * 3), data = [], initial = 100000;
+    var shockEnd = .34, eventIndex = Math.round(count * .28);
+    for (var i = 0; i <= count; i++) {
+      var x = i / count, price;
+      if (x <= shockEnd) {
+        var k = x / shockEnd;
+        price = 1 - s.shock * (1 - Math.pow(1 - k, 1.65));
+      } else {
+        var r = (x - shockEnd) / (1 - shockEnd);
+        price = (1 - s.shock) * (1 + s.recovery * (1 - Math.pow(1 - r, 1.25)));
+      }
+      var days = x * s.horizon;
+      var yieldAccrual = days / 365 * .087;
+      var hold = initial * price;
+      var leverage = 1 / (1 - s.maxLtv);
+      var staticEquity = initial * (1 + (price - 1) * leverage + yieldAccrual);
+      var protection = s.slicer ? clamp((shockEnd - x) * 0.10, 0, .025) : 0;
+      var dynamicExposure = s.slicer ? Math.max(1.15, leverage - s.shock * 2.2) : Math.max(1.2, leverage - .15);
+      var dynamicEquity = initial * (1 + (price - 1) * dynamicExposure + yieldAccrual * 1.05 + protection);
+      if (s.slicer && i > eventIndex) dynamicEquity += initial * s.shock * .045 * (1 - Math.exp(-(i - eventIndex) / 18));
+      var staticHealth = .84 / Math.max(.12, s.maxLtv / Math.max(price, .35));
+      var dynamicHealth = staticHealth;
+      if (s.slicer && dynamicHealth < s.trigger) dynamicHealth = s.trigger + .34 * (1 - Math.exp(-Math.max(0, i - eventIndex) / 8));
+      data.push({ x: x, day: days, dynamic: dynamicEquity, staticValue: staticEquity, hold: hold, dynamicHealth: dynamicHealth, staticHealth: staticHealth });
+    }
+    return data;
+  }
+
+  function fitCanvas(canvas) {
+    var rect = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr)) {
+      canvas.width = Math.max(1, Math.round(rect.width * dpr)); canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    }
+    var ctx = canvas.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
+    return { ctx: ctx, width: rect.width, height: rect.height };
+  }
+
+  function chartBase(canvas, min, max, formatY) {
+    var f = fitCanvas(canvas), ctx = f.ctx, w = f.width, h = f.height, pad = { l: 48, r: 12, t: 15, b: 26 };
+    ctx.clearRect(0,0,w,h); ctx.font = "10px " + getComputedStyle(document.documentElement).getPropertyValue("--mono");
+    ctx.textBaseline = "middle";
+    for (var i=0;i<=4;i++) {
+      var y = pad.t + (h-pad.t-pad.b) * i/4;
+      ctx.strokeStyle = "#232833"; ctx.lineWidth = 1; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#6B7482"; ctx.textAlign = "right"; ctx.fillText(formatY(max-(max-min)*i/4), pad.l-7, y);
+    }
+    return { ctx:ctx,w:w,h:h,pad:pad,px:function(x){return pad.l+x*(w-pad.l-pad.r);},py:function(v){return pad.t+(1-(v-min)/(max-min))*(h-pad.t-pad.b);} };
+  }
+
+  function drawLine(base, data, key, color, limit) {
+    var ctx=base.ctx; ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.beginPath();
+    data.forEach(function(d,i){ if (i>limit) return; var x=base.px(d.x), y=base.py(d[key]); if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y); }); ctx.stroke();
+  }
+
+  function drawPerformance(data, limit) {
+    var values=[]; data.forEach(function(d){values.push(d.dynamic,d.staticValue,d.hold);});
+    var min=Math.min.apply(null,values)*.96, max=Math.max.apply(null,values)*1.03;
+    var base=chartBase($("performanceChart"),min,max,function(v){return "$"+Math.round(v/1000)+"k";});
+    drawLine(base,data,"dynamic","#F5B14C",limit); drawLine(base,data,"staticValue","#8B79F7",limit); drawLine(base,data,"hold","#6B7482",limit);
+    var s=stressSettings(),ctx=base.ctx; ctx.fillStyle="#6B7482";ctx.textAlign="center";ctx.textBaseline="top";
+    [0,.25,.5,.75,1].forEach(function(x){ctx.fillText(Math.round(x*s.horizon)+"d",base.px(x),base.h-base.pad.b+8);});
+    var marker=.28; ctx.strokeStyle="#F5B14C";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(base.px(marker),base.pad.t);ctx.lineTo(base.px(marker),base.h-base.pad.b);ctx.stroke();ctx.setLineDash([]);
+  }
+
+  function drawRisk(data, limit) {
+    var base=chartBase($("riskChart"),.6,3,function(v){return v.toFixed(1);});
+    drawLine(base,data,"dynamicHealth","#F5B14C",limit); drawLine(base,data,"staticHealth","#8B79F7",limit);
+    var ctx=base.ctx,y=base.py(1);ctx.strokeStyle="#F0655A";ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(base.pad.l,y);ctx.lineTo(base.w-base.pad.r,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#F0655A";ctx.textAlign="left";ctx.fillText("LIQUIDATION · HF 1.00",base.pad.l+5,y-9);
+  }
+
+  function minOf(data,key){return Math.min.apply(null,data.map(function(d){return d[key];}));}
+  function maxDrawdown(data,key){var peak=data[0][key],max=0;data.forEach(function(d){peak=Math.max(peak,d[key]);max=Math.max(max,(peak-d[key])/peak);});return max;}
+  function signedPct(v){return (v>=0?"+":"")+(v*100).toFixed(2)+"%";}
+  function setReturnClass(id,value){var el=$(id);el.className=value>=0?"green":"red";}
+
+  function updateStressSummary(data) {
+    var last=data[data.length-1], dRet=last.dynamic/100000-1,sRet=last.staticValue/100000-1,hRet=last.hold/100000-1;
+    $("dynamicEnd").textContent=money.format(last.dynamic);$("dynamicReturn").textContent=signedPct(dRet);$("dynamicDrawdown").textContent="−"+(maxDrawdown(data,"dynamic")*100).toFixed(2)+"%";$("dynamicMinHealth").textContent=minOf(data,"dynamicHealth").toFixed(2);
+    $("staticEnd").textContent=money.format(last.staticValue);$("staticReturn").textContent=signedPct(sRet);$("staticDrawdown").textContent="−"+(maxDrawdown(data,"staticValue")*100).toFixed(2)+"%";$("staticMinHealth").textContent=minOf(data,"staticHealth").toFixed(2);$("staticLiquidated").textContent=minOf(data,"staticHealth")<1?"YES":"NO";$("staticLiquidated").className=minOf(data,"staticHealth")<1?"red":"green";
+    $("holdEnd").textContent=money.format(last.hold);$("holdReturn").textContent=signedPct(hRet);$("holdDrawdown").textContent="−"+(maxDrawdown(data,"hold")*100).toFixed(2)+"%";
+    setReturnClass("dynamicReturn",dRet);setReturnClass("staticReturn",sRet);setReturnClass("holdReturn",hRet);
+    $("dynamicLiquidated").textContent=minOf(data,"dynamicHealth")<1?"YES":"NO";$("dynamicLiquidated").className=minOf(data,"dynamicHealth")<1?"red":"green";
+  }
+
+  function drawStress(limit) {
+    if ($("panel-stress").hidden) return;
+    var data=buildStressData(),finalLimit=typeof limit==="number"?limit:data.length-1;
+    drawPerformance(data,finalLimit);drawRisk(data,finalLimit);updateStressSummary(data);
+  }
+
+  function updateStressControls() {
+    var s=stressSettings();
+    $("shockOut").textContent="−"+Math.round(s.shock*100)+"%";$("recoveryOut").textContent="+"+Math.round(s.recovery*100)+"%";$("stressLtvOut").textContent=Math.round(s.maxLtv*100)+"%";$("bandOut").textContent="±"+Math.round(s.band*100)+"%";$("horizonOut").textContent=s.horizon+"d";$("sliceTriggerOut").textContent=s.trigger.toFixed(2);
+    $("shockEventText").textContent="Price shock −"+Math.round(s.shock*100)+"% applied over "+Math.round(s.horizon*.34)+" days.";$("rebalanceEventTime").textContent="DAY "+String(Math.max(1,Math.round(s.horizon*.28))).padStart(2,"0")+" · 14:32";$("simEventTime").textContent="DAY "+String(Math.max(1,Math.round(s.horizon*.28))).padStart(2,"0")+" · 14:33";$("restoreEventTime").textContent="DAY "+String(Math.max(1,Math.round(s.horizon*.28))).padStart(2,"0")+" · 14:34";$("rebalanceEventText").textContent=s.slicer?"Health crossed the Slicer trigger at "+s.trigger.toFixed(2)+".":"Automation responds at the rebalance boundary.";
+    Object.keys(stressInputs).forEach(function(k){setRangeFill(stressInputs[k]);});drawStress();
+  }
+  Object.keys(stressInputs).forEach(function(k){stressInputs[k].addEventListener("input",function(){ if(k==="ltv"){state.maxLtv=Number(this.value);$("maxLtv").value=state.maxLtv;setRangeFill($("maxLtv"));renderAllOptimizer();} updateStressControls();});});
+  $("slicerToggle").addEventListener("change",updateStressControls);
+
+  $("playScenario").addEventListener("click",function(){
+    var data=buildStressData(),button=this,label=button.querySelector("span");
+    if(state.playTimer){window.clearInterval(state.playTimer);state.playTimer=null;label.textContent="PLAY SCENARIO";$("playState").textContent="STATUS: PAUSED";return;}
+    var i=0;label.textContent="PAUSE SCENARIO";$("playState").textContent="STATUS: RUNNING";
+    state.playTimer=window.setInterval(function(){i+=2;drawStress(Math.min(i,data.length-1));$("playState").textContent="DAY "+Math.round(data[Math.min(i,data.length-1)].day)+" / "+stressSettings().horizon;if(i>=data.length-1){window.clearInterval(state.playTimer);state.playTimer=null;label.textContent="PLAY AGAIN";$("playState").textContent="STATUS: COMPLETE";}},reducedMotion?10:45);
+  });
+  $("resetScenario").addEventListener("click",function(){
+    if(state.playTimer){window.clearInterval(state.playTimer);state.playTimer=null;}
+    stressInputs.shock.value=18;stressInputs.recovery.value=9;stressInputs.ltv.value=52;stressInputs.band.value=2;stressInputs.horizon.value=30;stressInputs.trigger.value=145;$("slicerToggle").checked=true;$("playScenario").querySelector("span").textContent="PLAY SCENARIO";$("playState").textContent="STATUS: READY";updateStressControls();
+  });
+
+  var resizeTimer;
+  window.addEventListener("resize",function(){window.clearTimeout(resizeTimer);resizeTimer=window.setTimeout(drawStress,100);});
+
+  renderAllOptimizer();
+  resetExecutionTrace();
+  updateStressControls();
+})();
+</script>
+</body>
+</html>
