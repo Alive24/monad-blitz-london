@@ -1,0 +1,16 @@
+{
+  "network": "Monad Testnet",
+  "chainId": 10143,
+  "deployer": "0x9f7136fc32A3c8404102dbC6207a2A899a2fB32e",
+  "testnetAavePoolHarness": "0xd554F84f63F3099109ebd77C71Ab72853a4E1f4A",
+  "managedAaveVault": "0x7A7F7d5ABe4b8B86f143B7f4b73CA1d0743C8153",
+  "targetHealthFactor": "1750000000000000000",
+  "transactions": {
+    "poolDeployment": "0x4d90c9cd9e85f78a366be3d043d3572ec38d4dc5a398ae7ea5cc8ddcf47b7638",
+    "vaultDeployment": "0xe8509e4f86e0d67e7ef6f5283d9cf66725df5ab839f0b0b07cbb4239b5648eb4",
+    "initialConfiguration": "0x37e235648b2ff3416659e578a2cedeaa9e2d4445558483fec0500fbc59317db5",
+    "demoStress": "0xfe5f286738f13fc2f3119c547c8c4e9ca0d7a9ba3412939121c72c8c0f544792",
+    "demoVaultResponse": "0xbf3bc4a1e14ed63e3ca26a00d8c18f8d9bb9f87f5cfea51244d4fb6a764d4467"
+  },
+  "warning": "The Pool is a testnet-only harness, not an Aave market. Never send assets to it."
+}

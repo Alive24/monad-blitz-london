@@ -33,6 +33,13 @@ npm run deploy:testnet-demo
 
 The harness exists only to verify deployment, HF reads, and the automatic executor gate on-chain. Never send assets to it.
 
+Current demo deployment:
+
+- Vault: [`0x7A7F…8153`](https://testnet.monadscan.com/address/0x7A7F7d5ABe4b8B86f143B7f4b73CA1d0743C8153)
+- Testnet Pool harness: [`0xd554…1f4A`](https://testnet.monadscan.com/address/0xd554F84f63F3099109ebd77C71Ab72853a4E1f4A)
+- Verified HF response transaction: [`0xbf3b…4467`](https://testnet.monadscan.com/tx/0xbf3bc4a1e14ed63e3ca26a00d8c18f8d9bb9f87f5cfea51244d4fb6a764d4467)
+- Machine-readable record: `deployments/monad-testnet.demo.json`
+
 Run a complete harness-only cycle that changes HF from `1.60` back to `1.75` through the real vault executor:
 
 ```bash
