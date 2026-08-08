@@ -107,15 +107,15 @@ export function formatTelegramSavingsMessage(window: TelegramSavingsWindow): str
       ? `🧯 ${window.rebalanceCount} rebalances · ${window.actionCount} asset actions · final HF ${window.finalHealth.toFixed(2)}`
       : `🛡️ No rebalance needed · final HF ${window.finalHealth.toFixed(2)}`;
   const closing = window.staticDollarChange < 0
-    ? `That is ${saved} static Aave would have burned. Slicer kept it yours.`
-    : `That is ${saved} of extra value static Aave would have left on the table.`;
+    ? `That is ${saved} the do-nothing strategy would have burned. Slicer kept it yours.`
+    : `That is ${saved} of extra value the do-nothing strategy would have left on the table.`;
 
   return [
     "🚨🛟 SLICER SAVED YOUR ASS",
     "",
     `LAST 10 TICKS · T${window.startTick}–T${window.endTick}`,
     `Market path: ${marketPath}`,
-    `Static Aave: ${signedMoney(window.staticDollarChange)} (${signedPercent(window.staticPercentChange)})`,
+    `Do nothing: ${signedMoney(window.staticDollarChange)} (${signedPercent(window.staticPercentChange)})`,
     `Slicer: ${signedMoney(window.optimizedDollarChange)} (${signedPercent(window.optimizedPercentChange)})`,
     "",
     `💰 MONEY KEPT: ${saved} (${window.percentageSaved.toFixed(2)}% of your vault)`,

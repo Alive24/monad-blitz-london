@@ -48,7 +48,7 @@ test("builds a cumulative ten-tick window with dollars and percentage", () => {
   assert.match(message, /SLICER SAVED YOUR ASS/);
   assert.match(message, /LAST 10 TICKS · T1–T10/);
   assert.match(message, /MONEY KEPT: \$20,000 \(4\.00% of your vault\)/);
-  assert.match(message, /Static Aave: −\$50,000 \(−10\.00%\)/);
+  assert.match(message, /Do nothing: −\$50,000 \(−10\.00%\)/);
   assert.match(message, /Slicer: −\$30,000 \(−6\.00%\)/);
 });
 

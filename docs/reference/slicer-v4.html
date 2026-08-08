@@ -757,16 +757,16 @@
           <div class="module-head"><h2 class="panel-title" id="trajectoryTitle">Trajectory · price ticks and strategy responses</h2></div>
           <div class="trajectory-layout">
             <div class="trajectory-chart">
-              <div class="legend"><span class="legend-item"><span class="legend-swatch"></span>OPTIMIZED RESPONSE</span><span class="legend-item"><span class="legend-swatch purple"></span>CONCENTRATED APY</span><span class="legend-item"><span class="legend-swatch gray"></span>STATIC AAVE</span></div>
+              <div class="legend"><span class="legend-item"><span class="legend-swatch"></span>SLICER</span><span class="legend-item"><span class="legend-swatch purple"></span>ALL-IN YIELD</span><span class="legend-item"><span class="legend-swatch gray"></span>DO NOTHING</span></div>
               <canvas id="trajectoryChart" aria-label="Health factor trajectory after timestamped price changes"></canvas>
             </div>
-            <div class="trajectory-table table-scroll"><table class="data-table"><thead><tr><th>Time</th><th>Tick</th><th>Price</th><th>Pre-response HF</th><th>Vault response</th></tr></thead><tbody id="trajectoryBody"></tbody></table></div>
+            <div class="trajectory-table table-scroll"><table class="data-table"><thead><tr><th>Time</th><th>Tick</th><th>Price</th><th>Slicer asset value</th><th>Pre-response HF</th><th>Vault response</th></tr></thead><tbody id="trajectoryBody"></tbody></table></div>
           </div>
         </section>
 
         <section class="module comparison" aria-labelledby="liveComparisonTitle">
           <div class="module-head"><h2 class="panel-title" id="liveComparisonTitle">Current timestamp · benchmark state</h2></div>
-          <div class="table-scroll"><table class="data-table"><thead><tr><th>Strategy</th><th>HF before response</th><th>HF after response</th><th>Cumulative equity impact</th><th>State</th></tr></thead><tbody id="liveBenchmarkBody"></tbody></table></div>
+          <div class="table-scroll"><table class="data-table"><thead><tr><th>Strategy</th><th>HF before response</th><th>HF after response</th><th>Total asset value</th><th>Cumulative change</th><th>State</th></tr></thead><tbody id="liveBenchmarkBody"></tbody></table></div>
           <div class="simulation-meta"><span id="simulationStatus">TRAJECTORY · READY</span><span id="stepCount">0 RESPONSE TRANSACTIONS</span><span>AAVE BOUNDARY · HF 1.00</span></div>
         </section>
 
@@ -1322,18 +1322,20 @@
     $("trajectoryBody").innerHTML = live.history.slice().reverse().map(function (point) {
       var tick = point.tick === 0 ? "START" : (point.tick > 0 ? "+5% " : "−5% ") + point.asset;
       var price = point.price == null ? "—" : money.format(point.price);
+      var totalAssetValue = money.format(Math.max(0, state.equity * (1 + point.impact)));
       var response = point.actions && point.actions.length ? point.actions.length + " CONFIRMED · " + point.actions.map(function (action) { return action.type + " " + action.asset; }).join(", ") : point.action;
-      return '<tr><td>T+' + String(point.time).padStart(2, "0") + '</td><td><span class="tick-badge ' + (point.tick < 0 ? 'red' : point.tick > 0 ? 'green' : 'faint') + '">' + tick + '</span></td><td>' + price + '</td><td class="' + strategyState(point.preHealth, point.optimizedLiquidated).className + '">' + point.preHealth.toFixed(3) + '</td><td>' + response + '</td></tr>';
+      return '<tr><td>T+' + String(point.time).padStart(2, "0") + '</td><td><span class="tick-badge ' + (point.tick < 0 ? 'red' : point.tick > 0 ? 'green' : 'faint') + '">' + tick + '</span></td><td>' + price + '</td><td><strong>' + totalAssetValue + '</strong></td><td class="' + strategyState(point.preHealth, point.optimizedLiquidated).className + '">' + point.preHealth.toFixed(3) + '</td><td>' + response + '</td></tr>';
     }).join("");
 
     var rows = [
-      { name: "OPTIMIZED RESPONSE", dot: "", before: last.preHealth, after: last.postHealth, impact: last.impact, liquidated: last.optimizedLiquidated },
-      { name: "CONCENTRATED APY", dot: "purple", before: last.concentrated, after: last.concentrated, impact: last.concentratedImpact, liquidated: last.concentratedLiquidated },
-      { name: "STATIC AAVE", dot: "gray", before: last.staticValue, after: last.staticValue, impact: last.staticImpact, liquidated: last.staticLiquidated }
+      { name: "SLICER", dot: "", before: last.preHealth, after: last.postHealth, impact: last.impact, liquidated: last.optimizedLiquidated },
+      { name: "ALL-IN YIELD", dot: "purple", before: last.concentrated, after: last.concentrated, impact: last.concentratedImpact, liquidated: last.concentratedLiquidated },
+      { name: "DO NOTHING", dot: "gray", before: last.staticValue, after: last.staticValue, impact: last.staticImpact, liquidated: last.staticLiquidated }
     ];
     $("liveBenchmarkBody").innerHTML = rows.map(function (row, index) {
       var status = strategyState(row.after, row.liquidated);
-      return '<tr class="' + (index === 0 ? 'selected ' : '') + (row.liquidated ? 'liquidated-row' : '') + '"><td><span class="benchmark-label"><span class="benchmark-dot ' + row.dot + '"></span>' + row.name + '</span></td><td class="' + strategyState(row.before, row.liquidated).className + '">' + row.before.toFixed(3) + '</td><td class="' + status.className + '">' + row.after.toFixed(3) + '</td><td class="' + (row.impact < 0 || row.liquidated ? 'red' : 'green') + '">' + signedPct(row.impact) + '</td><td class="' + status.className + '">' + status.label + '</td></tr>';
+      var totalAssetValue = money.format(Math.max(0, state.equity * (1 + row.impact)));
+      return '<tr class="' + (index === 0 ? 'selected ' : '') + (row.liquidated ? 'liquidated-row' : '') + '"><td><span class="benchmark-label"><span class="benchmark-dot ' + row.dot + '"></span>' + row.name + '</span></td><td class="' + strategyState(row.before, row.liquidated).className + '">' + row.before.toFixed(3) + '</td><td class="' + status.className + '">' + row.after.toFixed(3) + '</td><td><strong>' + totalAssetValue + '</strong></td><td class="' + (row.impact < 0 || row.liquidated ? 'red' : 'green') + '">' + signedPct(row.impact) + '</td><td class="' + status.className + '">' + status.label + '</td></tr>';
     }).join("");
     drawTrajectory();
   }
