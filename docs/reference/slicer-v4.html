@@ -473,6 +473,14 @@
   .step-button.down { color: var(--red); border-color: rgba(240,101,90,.55); }
   .step-button.up { color: var(--green); border-color: rgba(74,222,128,.45); }
   .step-button:hover { background: var(--surface-2); }
+  .step-button:disabled { cursor: wait; opacity: .55; }
+  .live-chain-status { display: grid; grid-template-columns: auto 1fr; gap: 5px 9px; align-items: center; margin: 0 0 20px; border: 1px solid var(--line); border-left: 3px solid var(--green); padding: 11px 12px; background: var(--surface); font-family: var(--mono); font-size: 9px; }
+  .live-chain-status strong { color: var(--green); }
+  .live-chain-status span:last-child { grid-column: 1 / -1; color: var(--muted); overflow-wrap: anywhere; }
+  .live-chain-status.pending { border-left-color: var(--amber); }
+  .live-chain-status.pending strong { color: var(--amber); }
+  .live-chain-status.error { border-left-color: var(--red); }
+  .live-chain-status.error strong { color: var(--red); }
   .timestamp-strip { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 12px 0; font-family: var(--mono); }
   .timestamp-strip span { color: var(--muted); font-size: 10px; }
   .timestamp-strip strong { display: block; margin-top: 4px; font-size: 17px; }
@@ -638,9 +646,9 @@
       <button class="tab-button" role="tab" id="tab-stress" aria-controls="panel-stress" aria-selected="false" data-tab="stress">STRESS LAB</button>
     </nav>
     <div class="network-status" aria-label="Network status">
-      <span class="network-item"><span class="monad-mark" aria-hidden="true"></span> MONAD MAINNET</span>
-      <span class="network-item"><span class="purple">▲</span> AAVE V3</span>
-      <span class="network-item">BLOCK <span id="liveBlock">42,891,204</span> <span class="live-dot" aria-label="live"></span></span>
+      <span class="network-item"><span class="monad-mark" aria-hidden="true"></span> MONAD TESTNET</span>
+      <span class="network-item"><span class="purple">▲</span> ONCHAIN VAULT</span>
+      <span class="network-item">BLOCK <span id="liveBlock">CONNECTING</span> <span class="live-dot" aria-label="live"></span></span>
     </div>
   </header>
 
@@ -725,6 +733,7 @@
             <button class="step-button up" id="priceUp" type="button">+1% PRICE</button>
           </div>
         </div>
+        <div class="live-chain-status pending" id="liveChainStatus" role="status" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><strong id="liveChainStatusTitle">CONNECTING</strong><span id="liveChainStatusText">Checking the managed vault and transaction wallet…</span></div>
         <div class="timestamp-strip">
           <div><span>TIMESTAMP</span><strong id="trajectoryTime">T+00</strong></div>
           <div style="text-align:right"><span>CUMULATIVE MOVE</span><strong id="cumulativeMove">0.00%</strong></div>
@@ -740,7 +749,7 @@
           <div class="threshold-row"><span>Aave boundary</span><strong>1.00</strong></div>
         </div>
         <button class="reset-link" id="resetTrajectory" type="button">RESET TRAJECTORY</button>
-        <p class="constraint-note">Each ±1% click creates a new timestamp, reprices the selected collateral, computes HF, and adds the managed-vault response.</p>
+        <p class="constraint-note">Each ±1% click broadcasts a real oracle tick. When HF falls below target, the app sends one atomic managed-vault basket and waits for confirmation.</p>
       </aside>
 
       <main class="main-stage">
@@ -765,7 +774,7 @@
           <section class="module" aria-labelledby="compositionTitle">
             <div class="module-head"><h2 class="panel-title" id="compositionTitle">Latest adjustment composition · <span class="amber" id="compositionTime">T+00</span></h2></div>
             <div class="table-scroll"><table class="data-table action-table"><thead><tr><th>#</th><th>Action type</th><th>Asset</th><th>Value</th><th>Asset amount</th><th>Monad indexer</th></tr></thead><tbody id="actionBody"></tbody></table></div>
-            <div class="receipt-note">DEMO RECEIPTS · MonadVision is the official mainnet explorer route. Replace simulated hashes with executor transaction receipts when contract execution is wired.</div>
+            <div class="receipt-note">LIVE RECEIPTS · Every asset row links to the confirmed atomic vault transaction on Monad testnet.</div>
           </section>
         </div>
 
@@ -839,6 +848,7 @@
     shockAsset: "WETH",
     portfolio: null,
     live: null,
+    liveBusy: false,
     mechanismTimer: null,
     mechanismIndex: 0,
     mechanismFed: 0,
@@ -848,7 +858,7 @@
   var supplyMarkets = [
     { symbol: "WETH", name: "Wrapped Ether", price: 3420, locked: 2310000, supplyApy: 7.60, threshold: .84 },
     { symbol: "wstETH", name: "Wrapped stETH", price: 3890, locked: 1970000, supplyApy: 7.38, threshold: .78 },
-    { symbol: "cbBTC", name: "Coinbase Bitcoin", price: 112400, locked: 1630000, supplyApy: 6.92, threshold: .77 },
+    { symbol: "USDe", name: "Ethena USDe", price: 1, locked: 1630000, supplyApy: 6.92, threshold: .77 },
     { symbol: "USDC", name: "USD Coin", price: 1, locked: 1480000, supplyApy: 5.71, threshold: .82 },
     { symbol: "AUSD", name: "Agora Dollar", price: 1, locked: 1220000, supplyApy: 8.05, threshold: .75 }
   ];
@@ -996,29 +1006,59 @@
     return Object.keys(values).reduce(function (sum, symbol) { return sum + values[symbol]; }, 0);
   }
 
-  function demoTxHash(seed) {
-    var output = "", hash = 2166136261;
-    for (var block = 0; block < 8; block++) {
-      for (var index = 0; index < seed.length; index++) {
-        hash ^= seed.charCodeAt(index) + block;
-        hash = Math.imul(hash, 16777619);
-      }
-      hash ^= Math.imul(block + 1, 2654435761);
-      output += (hash >>> 0).toString(16).padStart(8, "0");
-    }
-    return "0x" + output;
-  }
-
   function makeAction(time, index, type, asset, value, price) {
-    var hash = demoTxHash([time, index, type, asset, value.toFixed(2)].join(":"));
     return {
       type: type,
       asset: asset,
       value: value,
       units: price > 0 ? value / price : 0,
-      hash: hash,
-      url: "https://monadvision.com/tx/" + hash
+      hash: null,
+      url: null
     };
+  }
+
+  function shortHash(hash) {
+    return hash ? hash.slice(0, 8) + "…" + hash.slice(-4) : "PENDING";
+  }
+
+  function setLiveStatus(kind, title, detail) {
+    var status = $("liveChainStatus");
+    status.className = "live-chain-status" + (kind ? " " + kind : "");
+    $("liveChainStatusTitle").textContent = title;
+    $("liveChainStatusText").textContent = detail;
+  }
+
+  function setLiveBusy(busy) {
+    state.liveBusy = busy;
+    $("priceDown").disabled = busy;
+    $("priceUp").disabled = busy;
+    $("resetTrajectory").disabled = busy;
+    $("shockAsset").disabled = busy;
+    $("priceDown").textContent = busy ? "BROADCASTING…" : "−1% PRICE";
+    $("priceUp").textContent = busy ? "BROADCASTING…" : "+1% PRICE";
+  }
+
+  async function submitLiveStep(payload) {
+    var response = await fetch("/api/live-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    var result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Transaction request failed");
+    return result;
+  }
+
+  async function loadChainStatus() {
+    try {
+      var response = await fetch("/api/status", { cache: "no-store" });
+      var result = await response.json();
+      if (!response.ok || !result.harnessMode) throw new Error(result.error || "Testnet harness is not ready");
+      $("liveBlock").textContent = Number(result.blockNumber).toLocaleString("en-US");
+      setLiveStatus("", "ONCHAIN READY", "Wallet " + result.account.slice(0, 8) + "…" + result.account.slice(-4) + " · HF " + result.healthFactor.toFixed(3));
+    } catch (error) {
+      setLiveStatus("error", "APP OFFLINE", error.message || "Could not reach the Viem transaction server");
+    }
   }
 
   function initializeTrajectory() {
@@ -1072,13 +1112,18 @@
         debtDelta: 0,
         action: "INITIALIZED",
         priceAction: "AWAITING NEXT TICK",
+        oracleHash: null,
+        oracleUrl: null,
+        vaultHash: null,
+        vaultUrl: null,
         actions: []
       }
     };
     renderLive();
   }
 
-  function advanceTrajectory(direction) {
+  async function advanceTrajectory(direction) {
+    if (state.liveBusy) return;
     var live = state.live;
     var market = state.portfolio.supplies.find(function (item) { return item.symbol === state.shockAsset; });
     if (!market) return;
@@ -1087,17 +1132,17 @@
     var beforeDebt = live.debt;
     var beforeHealth = riskValue(live.values) / beforeDebt;
     var previousAssetValue = live.values[market.symbol];
+    var nextFactor = live.factors[market.symbol] * (1 + direction * .01);
+    var shockedValues = Object.assign({}, live.values);
+    shockedValues[market.symbol] *= 1 + direction * .01;
 
-    live.factors[market.symbol] *= 1 + direction * .01;
-    live.values[market.symbol] *= 1 + direction * .01;
-
-    var shockedCollateral = collateralValue(live.values);
-    var preHealth = riskValue(live.values) / beforeDebt;
+    var shockedCollateral = collateralValue(shockedValues);
+    var preHealth = riskValue(shockedValues) / beforeDebt;
     var shockedEquity = shockedCollateral - beforeDebt;
     var shouldRebalance = preHealth < state.targetHealth;
     var targetCollateral = shockedCollateral;
     var targetDebt = beforeDebt;
-    var targetSupplyValues = Object.assign({}, live.values);
+    var targetSupplyValues = Object.assign({}, shockedValues);
     var targetBorrowValues = Object.assign({}, live.borrowValues);
     var actions = [];
 
@@ -1108,13 +1153,13 @@
       targetBorrowValues = {};
 
       state.portfolio.supplies.forEach(function (supplyMarket) {
-        var currentValue = live.values[supplyMarket.symbol] || 0;
+        var currentValue = shockedValues[supplyMarket.symbol] || 0;
         var targetValue = targetCollateral * supplyMarket.weight;
         var difference = targetValue - currentValue;
         targetSupplyValues[supplyMarket.symbol] = targetValue;
         if (Math.abs(difference) >= 1) {
           var type = difference > 0 ? "SUPPLY" : "WITHDRAW";
-          var currentPrice = supplyMarket.price * (live.factors[supplyMarket.symbol] || 1);
+          var currentPrice = supplyMarket.price * (supplyMarket.symbol === market.symbol ? nextFactor : (live.factors[supplyMarket.symbol] || 1));
           actions.push(makeAction(responseTime, actions.length, type, supplyMarket.symbol, Math.abs(difference), currentPrice));
         }
       });
@@ -1132,55 +1177,90 @@
       });
     }
 
-    var debtDelta = targetDebt - beforeDebt;
-    var valueChange = live.values[market.symbol] - previousAssetValue;
-    live.equityImpact = (shockedEquity - state.equity) / state.equity;
-    live.concentratedImpact += valueChange / state.equity * .86 / market.weight;
-    live.staticImpact += valueChange / state.equity * .58 / market.weight;
-    live.values = targetSupplyValues;
-    live.borrowValues = targetBorrowValues;
-    live.debt = targetDebt;
+    setLiveBusy(true);
+    setLiveStatus("pending", "AWAITING CONFIRMATION", (direction > 0 ? "+1% " : "−1% ") + market.symbol + " oracle tick" + (shouldRebalance ? " + atomic vault basket" : ""));
+    try {
+      var receipt = await submitLiveStep({
+        asset: market.symbol,
+        direction: direction,
+        preHealth: preHealth,
+        targetHealth: state.targetHealth,
+        actions: actions.map(function (action) {
+          var stable = action.asset === "USDC" || action.asset === "AUSD";
+          return { type: action.type, asset: action.asset, value: action.value, units: action.units.toFixed(stable ? 6 : 12) };
+        })
+      });
 
-    var previous = live.history[live.history.length - 1];
-    var postHealth = shouldRebalance ? state.targetHealth : preHealth;
-    var debtAction = shouldRebalance ? (debtDelta < -1 ? "NET REPAY " + money.format(Math.abs(debtDelta)) : debtDelta > 1 ? "NET BORROW " + money.format(debtDelta) : "DEBT NEUTRAL") : "NO ACTION · HF ABOVE TARGET";
-    var actionSummary = actions.length ? actions.map(function (item) { return item.type + " " + item.asset; }).join(" · ") : "NO ACTION · HF ABOVE TARGET";
-    var point = {
-      time: responseTime,
-      asset: market.symbol,
-      tick: direction,
-      price: market.price * live.factors[market.symbol],
-      currentHealth: beforeHealth,
-      preHealth: preHealth,
-      postHealth: postHealth,
-      optimized: postHealth,
-      concentrated: previous.concentrated * (1 + direction * .01 * .86),
-      staticValue: previous.staticValue * (1 + direction * .01 * .58),
-      action: actionSummary,
-      actions: actions,
-      debt: targetDebt,
-      collateral: targetCollateral,
-      impact: live.equityImpact,
-      concentratedImpact: live.concentratedImpact,
-      staticImpact: live.staticImpact
-    };
-    live.history.push(point);
-    live.lastTransition = {
-      beforeHealth: beforeHealth,
-      beforeCollateral: beforeCollateral,
-      beforeDebt: beforeDebt,
-      preHealth: preHealth,
-      shockedCollateral: shockedCollateral,
-      shockedDebt: beforeDebt,
-      postHealth: postHealth,
-      targetCollateral: targetCollateral,
-      targetDebt: targetDebt,
-      debtDelta: debtDelta,
-      action: debtAction,
-      priceAction: shouldRebalance ? actions.length + " ASSET ACTIONS · " + (direction > 0 ? "+1% " : "−1% ") + market.symbol : "MONITOR ONLY · HF " + preHealth.toFixed(3) + " ≥ " + state.targetHealth.toFixed(2),
-      actions: actions
-    };
-    renderLive();
+      actions.forEach(function (action) {
+        if (receipt.vaultTx) {
+          action.hash = receipt.vaultTx.hash;
+          action.url = receipt.vaultTx.url;
+        }
+      });
+      var debtDelta = targetDebt - beforeDebt;
+      var valueChange = shockedValues[market.symbol] - previousAssetValue;
+      live.equityImpact = (shockedEquity - state.equity) / state.equity;
+      live.concentratedImpact += valueChange / state.equity * .86 / market.weight;
+      live.staticImpact += valueChange / state.equity * .58 / market.weight;
+      live.factors[market.symbol] = nextFactor;
+      live.values = targetSupplyValues;
+      live.borrowValues = targetBorrowValues;
+      live.debt = targetDebt;
+
+      var previous = live.history[live.history.length - 1];
+      var postHealth = receipt.finalHealth;
+      var debtAction = shouldRebalance ? (debtDelta < -1 ? "NET REPAY " + money.format(Math.abs(debtDelta)) : debtDelta > 1 ? "NET BORROW " + money.format(debtDelta) : "DEBT NEUTRAL") : "NO ACTION · HF ABOVE TARGET";
+      var actionSummary = actions.length ? actions.map(function (item) { return item.type + " " + item.asset; }).join(" · ") : "NO ACTION · HF ABOVE TARGET";
+      var point = {
+        time: responseTime,
+        asset: market.symbol,
+        tick: direction,
+        price: market.price * nextFactor,
+        currentHealth: beforeHealth,
+        preHealth: preHealth,
+        postHealth: postHealth,
+        optimized: postHealth,
+        concentrated: previous.concentrated * (1 + direction * .01 * .86),
+        staticValue: previous.staticValue * (1 + direction * .01 * .58),
+        action: actionSummary,
+        actions: actions,
+        oracleHash: receipt.oracleTx.hash,
+        oracleUrl: receipt.oracleTx.url,
+        vaultHash: receipt.vaultTx ? receipt.vaultTx.hash : null,
+        vaultUrl: receipt.vaultTx ? receipt.vaultTx.url : null,
+        debt: targetDebt,
+        collateral: targetCollateral,
+        impact: live.equityImpact,
+        concentratedImpact: live.concentratedImpact,
+        staticImpact: live.staticImpact
+      };
+      live.history.push(point);
+      live.lastTransition = {
+        beforeHealth: beforeHealth,
+        beforeCollateral: beforeCollateral,
+        beforeDebt: beforeDebt,
+        preHealth: preHealth,
+        shockedCollateral: shockedCollateral,
+        shockedDebt: beforeDebt,
+        postHealth: postHealth,
+        targetCollateral: targetCollateral,
+        targetDebt: targetDebt,
+        debtDelta: debtDelta,
+        action: debtAction,
+        priceAction: shouldRebalance ? actions.length + " CONFIRMED ASSET ACTIONS · " + (direction > 0 ? "+1% " : "−1% ") + market.symbol : "CONFIRMED MONITOR TICK · HF " + preHealth.toFixed(3) + " ≥ " + state.targetHealth.toFixed(2),
+        oracleHash: receipt.oracleTx.hash,
+        oracleUrl: receipt.oracleTx.url,
+        vaultHash: receipt.vaultTx ? receipt.vaultTx.hash : null,
+        vaultUrl: receipt.vaultTx ? receipt.vaultTx.url : null,
+        actions: actions
+      };
+      setLiveStatus("", receipt.vaultTx ? "VAULT CONFIRMED" : "ORACLE CONFIRMED", shortHash(receipt.vaultTx ? receipt.vaultTx.hash : receipt.oracleTx.hash) + " · HF " + postHealth.toFixed(3));
+      renderLive();
+    } catch (error) {
+      setLiveStatus("error", "TRANSACTION FAILED", error.message || "The transaction was not confirmed");
+    } finally {
+      setLiveBusy(false);
+    }
   }
 
   function strategyState(health) {
@@ -1245,9 +1325,9 @@
     $("rotationAction").textContent = transition.priceAction;
     $("postActionHealth").textContent = transition.postHealth.toFixed(3);
 
-    var totalActionReceipts = live.history.reduce(function (sum, point) { return sum + (point.actions ? point.actions.length : 0); }, 0);
-    $("stepCount").textContent = totalActionReceipts + " ACTION RECEIPTS";
-    $("simulationStatus").textContent = live.history.length > 1 ? "TRAJECTORY · LIVE" : "TRAJECTORY · READY";
+    var vaultTransactions = live.history.filter(function (point) { return point.vaultHash; }).length;
+    $("stepCount").textContent = vaultTransactions + " VAULT TRANSACTIONS";
+    $("simulationStatus").textContent = state.liveBusy ? "TRAJECTORY · BROADCASTING" : live.history.length > 1 ? "TRAJECTORY · ONCHAIN" : "TRAJECTORY · READY";
     $("latestTotalSupply").textContent = money.format(transition.targetCollateral);
     $("latestTotalBorrow").textContent = money.format(transition.targetDebt);
     renderDistribution("latestSupplyDistribution", state.portfolio.supplies, live.values, transition.targetCollateral, actions, true);
@@ -1256,19 +1336,19 @@
     if (!actions.length) {
       $("actionBody").innerHTML = last.time === 0
         ? '<tr><td>—</td><td class="faint">INITIALIZE</td><td>TOP-' + state.topN + ' BASKETS</td><td>—</td><td>—</td><td class="faint">AWAITING RESPONSE</td></tr>'
-        : '<tr><td>—</td><td><span class="action-type">NO ACTION</span></td><td>' + last.asset + '</td><td>—</td><td>—</td><td class="green">HF ' + transition.postHealth.toFixed(3) + ' ≥ TARGET ' + state.targetHealth.toFixed(2) + '</td></tr>';
+        : '<tr><td>—</td><td><span class="action-type">NO ACTION</span></td><td>' + last.asset + '</td><td>—</td><td>—</td><td><a class="tx-link" href="' + transition.oracleUrl + '" target="_blank" rel="noopener noreferrer" aria-label="View confirmed oracle tick on Monadscan">' + shortHash(transition.oracleHash) + ' ↗</a></td></tr>';
     } else {
       $("actionBody").innerHTML = actions.map(function (action, index) {
         var marketInfo = supplyMarkets.concat(borrowMarkets).find(function (item) { return item.symbol === action.asset; });
         var price = marketInfo ? marketInfo.price * (live.factors[action.asset] || 1) : 1;
-        return '<tr><td>' + (index + 1) + '</td><td><span class="action-type ' + action.type.toLowerCase() + '">' + action.type + '</span></td><td><strong>' + action.asset + '</strong></td><td>' + money.format(action.value) + '</td><td>' + assetUnits(action.value, price) + ' ' + action.asset + '</td><td><a class="tx-link" href="' + action.url + '" target="_blank" rel="noopener noreferrer" aria-label="View simulated ' + action.type + ' ' + action.asset + ' transaction on MonadVision">' + action.hash.slice(0, 8) + '…' + action.hash.slice(-4) + ' ↗</a></td></tr>';
+        return '<tr><td>' + (index + 1) + '</td><td><span class="action-type ' + action.type.toLowerCase() + '">' + action.type + '</span></td><td><strong>' + action.asset + '</strong></td><td>' + money.format(action.value) + '</td><td>' + assetUnits(action.value, price) + ' ' + action.asset + '</td><td><a class="tx-link" href="' + action.url + '" target="_blank" rel="noopener noreferrer" aria-label="View confirmed atomic vault transaction for ' + action.type + ' ' + action.asset + ' on Monadscan">' + shortHash(action.hash) + ' ↗</a></td></tr>';
       }).join("");
     }
 
     $("trajectoryBody").innerHTML = live.history.slice().reverse().map(function (point) {
       var tick = point.tick === 0 ? "START" : (point.tick > 0 ? "+1% " : "−1% ") + point.asset;
       var price = point.price == null ? "—" : money.format(point.price);
-      var response = point.actions && point.actions.length ? point.actions.length + " ACTIONS · " + point.actions.map(function (action) { return action.type + " " + action.asset; }).join(", ") : point.action;
+      var response = point.actions && point.actions.length ? point.actions.length + " CONFIRMED · " + point.actions.map(function (action) { return action.type + " " + action.asset; }).join(", ") : point.action;
       return '<tr><td>T+' + String(point.time).padStart(2, "0") + '</td><td><span class="tick-badge ' + (point.tick < 0 ? 'red' : point.tick > 0 ? 'green' : 'faint') + '">' + tick + '</span></td><td>' + price + '</td><td class="' + strategyState(point.preHealth).className + '">' + point.preHealth.toFixed(3) + '</td><td>' + response + '</td></tr>';
     }).join("");
 
@@ -1661,6 +1741,7 @@
 
   renderOptimizer();
   resetMechanism();
+  loadChainStatus();
 })();
 </script>
 </body>
