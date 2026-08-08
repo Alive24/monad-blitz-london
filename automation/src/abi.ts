@@ -44,3 +44,24 @@ export const aavePoolAbi = [{
     { name: "healthFactor", type: "uint256" },
   ],
 }] as const;
+
+export const testnetHarnessAbi = [
+  {
+    type: "function",
+    name: "owner",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "setHealthFactors",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "currentHealthFactor", type: "uint256" },
+      { name: "postActionHealthFactor", type: "uint256" },
+    ],
+    outputs: [],
+  },
+] as const;

@@ -11,6 +11,7 @@ interface Vm {
     function startBroadcast(uint256 privateKey) external;
     function stopBroadcast() external;
 }
+
 contract DeployManagedAaveVault {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint256 private constant INITIAL_TARGET_HEALTH_FACTOR = 1.75e18;

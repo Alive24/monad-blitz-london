@@ -7,10 +7,12 @@
     "build:contracts": "forge build",
     "test:contracts": "forge test -vvv",
     "deploy:testnet": "dotenv -e .env.local -- forge script script/DeployManagedAaveVault.s.sol:DeployManagedAaveVault --rpc-url monad_testnet --broadcast",
+    "deploy:testnet-demo": "dotenv -e .env.local -- forge script script/DeployTestnetDemo.s.sol:DeployTestnetDemo --rpc-url monad_testnet --broadcast",
     "typecheck": "tsc --noEmit",
     "wallet:address": "node --import tsx automation/src/wallet-address.ts",
     "vault:status": "node --import tsx automation/src/status.ts",
-    "vault:rebalance": "node --import tsx automation/src/rebalance.ts"
+    "vault:rebalance": "node --import tsx automation/src/rebalance.ts",
+    "demo:cycle": "node --import tsx automation/src/demo-cycle.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.1",

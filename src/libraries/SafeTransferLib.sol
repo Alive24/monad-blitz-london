@@ -26,6 +26,7 @@ library SafeTransferLib {
     }
 
     function _callOptional(IERC20 token, bytes memory data) private returns (bool) {
+        if (address(token).code.length == 0) return false;
         (bool success, bytes memory result) = address(token).call(data);
         return success && (result.length == 0 || (result.length == 32 && abi.decode(result, (bool))));
     }

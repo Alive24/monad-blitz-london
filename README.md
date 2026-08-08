@@ -25,6 +25,20 @@ npm run typecheck
 
 The generated executor wallet is stored only in the gitignored `.env.local`. Fund its public address with Monad testnet MON before deployment.
 
+For an end-to-end testnet proof without claiming a live Aave testnet market, deploy the explicitly labeled Pool harness and real vault:
+
+```bash
+npm run deploy:testnet-demo
+```
+
+The harness exists only to verify deployment, HF reads, and the automatic executor gate on-chain. Never send assets to it.
+
+Run a complete harness-only cycle that changes HF from `1.60` back to `1.75` through the real vault executor:
+
+```bash
+npm run demo:cycle
+```
+
 Set `AAVE_POOL_ADDRESS` to the Aave-compatible Pool used for the target environment, then deploy:
 
 ```bash

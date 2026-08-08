@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {ManagedAaveVault} from "../src/ManagedAaveVault.sol";
+import {IAavePool} from "../src/interfaces/IAavePool.sol";
 import {MockAavePool} from "./mocks/MockAavePool.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
@@ -70,6 +71,12 @@ contract ManagedAaveVaultTest {
 
         vm.expectRevert(abi.encodeWithSelector(ManagedAaveVault.Unauthorized.selector));
         vault.execute(actions);
+    }
+
+    function testRejectsPoolWithoutCode() public {
+        address invalidPool = address(0xBEEF);
+        vm.expectRevert(abi.encodeWithSelector(ManagedAaveVault.InvalidPool.selector, invalidPool));
+        new ManagedAaveVault(IAavePool(invalidPool), OWNER, EXECUTOR, TARGET);
     }
 
     function _assertEq(uint256 actual, uint256 expected, string memory reason) private pure {

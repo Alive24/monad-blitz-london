@@ -34,6 +34,7 @@ contract ManagedAaveVault {
 
     error Unauthorized();
     error ZeroAddress();
+    error InvalidPool(address pool);
     error ZeroAmount();
     error EmptyActions();
     error InvalidTargetHealthFactor(uint256 targetHealthFactor);
@@ -67,6 +68,7 @@ contract ManagedAaveVault {
 
     constructor(IAavePool pool_, address owner_, address executor_, uint256 targetHealthFactor_) {
         if (address(pool_) == address(0) || owner_ == address(0) || executor_ == address(0)) revert ZeroAddress();
+        if (address(pool_).code.length == 0) revert InvalidPool(address(pool_));
         if (targetHealthFactor_ <= WAD) revert InvalidTargetHealthFactor(targetHealthFactor_);
         pool = pool_;
         owner = owner_;
