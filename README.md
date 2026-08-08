@@ -1,6 +1,6 @@
 # Slicer — managed Aave optimizer on Monad
 
-Slicer is a single-process web app for an HF-triggered managed vault. The optimizer selects top-N supply and borrow baskets using yield, market depth, collateral safety, and concentration caps. The Live Lab turns each price tick into an actual Monad testnet transaction and sends one atomic asset-level vault transaction whenever HF falls below target.
+Slicer is a single-process web app for an HF-triggered managed vault. The optimizer selects top-N supply and borrow baskets using yield, market depth, collateral safety, and concentration caps. The Live Lab turns each 5% price tick into an actual Monad testnet transaction and sends one atomic asset-level vault transaction whenever HF falls below target.
 
 There is no separate executor and there are no simulated hashes. `npm run dev` serves [`docs/reference/slicer-v4.html`](docs/reference/slicer-v4.html) and its same-origin Viem transaction API. The automated wallet key stays in the server-side, gitignored `.env.local`; it is never sent to the browser.
 
@@ -15,6 +15,10 @@ npm run dev
 Open <http://127.0.0.1:4174>, choose **Live Lab**, and press either price button. The app simulates each call with Viem, broadcasts it, waits for confirmation, and renders the real Monadscan receipt. The included configured wallet address is:
 
 `0x9f7136fc32A3c8404102dbC6207a2A899a2fB32e`
+
+## Telegram savings alerts
+
+Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env.local` to enable alerts. After each tenth confirmed trajectory tick, Slicer compares optimized equity performance with the static Aave benchmark. It sends one short Telegram message only when the optimized strategy has positive dollar savings. Missing credentials or a Telegram delivery failure never blocks the Monad transaction.
 
 ## Contracts and testnet deployment
 

@@ -370,6 +370,7 @@
   .event strong { display: block; margin: 3px 0; font-family: var(--mono); font-size: 11px; }
   .event p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
   .comparison { margin-top: 14px; }
+  .live-primary { margin-top: 0; }
   .comparison-note { padding: 10px 16px; color: var(--faint); font-family: var(--mono); font-size: 9px; border-top: 1px solid var(--line); }
 
   /* portfolio optimizer */
@@ -441,6 +442,8 @@
   .benchmark-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
   .benchmark-dot.purple { background: var(--purple); }
   .benchmark-dot.gray { background: var(--faint); }
+  .liquidated-row { background: rgba(240,101,90,.055); }
+  .liquidated-row .benchmark-dot { background: var(--red); }
   .simulation-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--faint); font-family: var(--mono); font-size: 9px; }
 
   /* one fixed representative stress */
@@ -481,6 +484,8 @@
   .live-chain-status.pending strong { color: var(--amber); }
   .live-chain-status.error { border-left-color: var(--red); }
   .live-chain-status.error strong { color: var(--red); }
+  .live-chain-status.liquidated { border-left-color: var(--red); background: rgba(240,101,90,.06); }
+  .live-chain-status.liquidated strong { color: var(--red); }
   .timestamp-strip { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 12px 0; font-family: var(--mono); }
   .timestamp-strip span { color: var(--muted); font-size: 10px; }
   .timestamp-strip strong { display: block; margin-top: 4px; font-size: 17px; }
@@ -643,7 +648,6 @@
     <nav class="tabs" role="tablist" aria-label="Slicer tools">
       <button class="tab-button" role="tab" id="tab-optimizer" aria-controls="panel-optimizer" aria-selected="true" data-tab="optimizer">OPTIMIZER</button>
       <button class="tab-button" role="tab" id="tab-vault" aria-controls="panel-vault" aria-selected="false" data-tab="vault">LIVE LAB</button>
-      <button class="tab-button" role="tab" id="tab-stress" aria-controls="panel-stress" aria-selected="false" data-tab="stress">STRESS LAB</button>
     </nav>
     <div class="network-status" aria-label="Network status">
       <span class="network-item"><span class="monad-mark" aria-hidden="true"></span> MONAD TESTNET</span>
@@ -672,10 +676,6 @@
           <div class="range-scale"><span>1</span><span class="amber">diversification</span><span>5</span></div>
         </div>
         <div class="protocol-boundary"><span>Aave liquidation boundary</span><strong>HF 1.00</strong><span>Protocol-derived · not user configurable</span></div>
-        <button class="primary-button" id="runOptimizer" type="button">
-          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 17h16M14 7l3-3m-3 3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>BUILD TARGET PORTFOLIO</span>
-        </button>
         <p class="constraint-note">Weights combine square-root market liquidity with collateral safety, then apply a concentration cap before normalization.</p>
       </aside>
 
@@ -729,8 +729,8 @@
         <div class="field">
           <span class="field-label">Advance next timestamp</span>
           <div class="step-controller">
-            <button class="step-button down" id="priceDown" type="button">−1% PRICE</button>
-            <button class="step-button up" id="priceUp" type="button">+1% PRICE</button>
+            <button class="step-button down" id="priceDown" type="button">−5% PRICE</button>
+            <button class="step-button up" id="priceUp" type="button">+5% PRICE</button>
           </div>
         </div>
         <div class="live-chain-status pending" id="liveChainStatus" role="status" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><strong id="liveChainStatusTitle">CONNECTING</strong><span id="liveChainStatusText">Checking the managed vault and transaction wallet…</span></div>
@@ -749,36 +749,11 @@
           <div class="threshold-row"><span>Aave boundary</span><strong>1.00</strong></div>
         </div>
         <button class="reset-link" id="resetTrajectory" type="button">RESET TRAJECTORY</button>
-        <p class="constraint-note">Each ±1% click broadcasts a real oracle tick. When HF falls below target, the app sends one atomic managed-vault basket and waits for confirmation.</p>
+        <p class="constraint-note">Each ±5% click broadcasts a real oracle tick. When HF falls below target, the app sends one atomic managed-vault basket and waits for confirmation.</p>
       </aside>
 
       <main class="main-stage">
-        <section class="module" aria-labelledby="transitionTitle">
-          <div class="module-head"><h2 class="panel-title" id="transitionTitle">Latest timestamp transition · <span class="amber" id="transitionTime">T+00</span></h2></div>
-          <div class="transition-grid">
-            <div class="transition-state"><h3>PREVIOUS STATE</h3><span class="big-hf green" id="currentStageHealth">—</span><div class="state-stat"><span>Collateral</span><strong id="currentStageSupply">—</strong></div><div class="state-stat"><span>Debt</span><strong id="currentStageDebt">—</strong></div></div>
-            <div class="transition-arrow" aria-hidden="true">→</div>
-            <div class="transition-state"><h3>ORACLE TICK</h3><span class="big-hf amber" id="shockStageHealth">—</span><div class="state-stat"><span>Collateral</span><strong id="shockStageSupply">—</strong></div><div class="state-stat"><span>Debt</span><strong id="shockStageDebt">—</strong></div></div>
-            <div class="transition-arrow" aria-hidden="true">→</div>
-            <div class="transition-state"><h3>VAULT RESPONSE</h3><span class="big-hf green" id="targetStageHealth">—</span><div class="state-stat"><span>Collateral</span><strong id="targetStageSupply">—</strong></div><div class="state-stat"><span>Debt</span><strong id="targetStageDebt">—</strong></div></div>
-          </div>
-          <div class="action-strip"><div class="action-item"><span>NET DEBT CHANGE</span><strong id="debtAction">INITIALIZED</strong></div><div class="action-item"><span>ASSET ACTIONS</span><strong id="rotationAction">AWAITING NEXT TICK</strong></div><div class="action-item"><span>POST-ACTION HF</span><strong class="green" id="postActionHealth">—</strong></div></div>
-        </section>
-
-        <div class="response-grid">
-          <section class="module" aria-labelledby="distributionTitle">
-            <div class="module-head"><h2 class="panel-title" id="distributionTitle">Latest post-response distribution</h2></div>
-            <div class="allocation-stack"><div class="allocation-side"><h3>SUPPLIED ASSETS</h3><div id="latestSupplyDistribution"></div></div><div class="allocation-side"><h3>BORROWED ASSETS</h3><div id="latestBorrowDistribution"></div></div></div>
-            <div class="response-summary"><span>TOTAL SUPPLIED <strong id="latestTotalSupply">—</strong></span><span>TOTAL BORROWED <strong id="latestTotalBorrow">—</strong></span></div>
-          </section>
-          <section class="module" aria-labelledby="compositionTitle">
-            <div class="module-head"><h2 class="panel-title" id="compositionTitle">Latest adjustment composition · <span class="amber" id="compositionTime">T+00</span></h2></div>
-            <div class="table-scroll"><table class="data-table action-table"><thead><tr><th>#</th><th>Action type</th><th>Asset</th><th>Value</th><th>Asset amount</th><th>Monad indexer</th></tr></thead><tbody id="actionBody"></tbody></table></div>
-            <div class="receipt-note">LIVE RECEIPTS · Every asset row links to the confirmed atomic vault transaction on Monad testnet.</div>
-          </section>
-        </div>
-
-        <section class="module comparison" aria-labelledby="trajectoryTitle">
+        <section class="module comparison live-primary" aria-labelledby="trajectoryTitle">
           <div class="module-head"><h2 class="panel-title" id="trajectoryTitle">Trajectory · price ticks and strategy responses</h2></div>
           <div class="trajectory-layout">
             <div class="trajectory-chart">
@@ -794,38 +769,18 @@
           <div class="table-scroll"><table class="data-table"><thead><tr><th>Strategy</th><th>HF before response</th><th>HF after response</th><th>Cumulative equity impact</th><th>State</th></tr></thead><tbody id="liveBenchmarkBody"></tbody></table></div>
           <div class="simulation-meta"><span id="simulationStatus">TRAJECTORY · READY</span><span id="stepCount">0 RESPONSE TRANSACTIONS</span><span>AAVE BOUNDARY · HF 1.00</span></div>
         </section>
-      </main>
-    </div>
-  </section>
 
-  <section class="tab-panel" id="panel-stress" role="tabpanel" aria-labelledby="tab-stress" hidden>
-    <div class="stress-workspace">
-      <main class="stress-stage">
-        <section class="mechanism-replay module" id="mechanismReplay" aria-labelledby="mechanismTitle">
-          <div class="mechanism-head">
-            <h2 class="panel-title" id="mechanismTitle">Live mechanism replay — one crash, simulated</h2>
-            <div class="mechanism-actions"><span class="mechanism-status calm" id="mechanismStatus">CALM</span><button class="secondary-button" id="replayMechanism" type="button">↻ REPLAY</button></div>
-          </div>
-          <div class="mechanism-grid">
-            <div class="mechanism-left">
-              <canvas id="mechanismPriceChart" aria-label="ETH price during the simulated crash with slice claims"></canvas>
-              <div class="health-row"><span class="health-label">HEALTH</span><div class="health-bar"><div class="health-fill" id="mechanismHealthFill"></div></div><span class="health-value" id="mechanismHealthValue">1.041</span></div>
-              <canvas id="discountChart" aria-label="Clearing discount in basis points for each claimed slice"></canvas>
-              <div class="legend"><span class="legend-item"><span class="benchmark-dot"></span>GREEDY_GARY</span><span class="legend-item"><span class="benchmark-dot purple"></span>PATIENT_PETRA</span><span class="legend-item"><span class="benchmark-dot" style="background:var(--green)"></span>SLICING HALTED</span></div>
-            </div>
-            <div class="mechanism-feed" id="mechanismFeed" aria-live="polite"></div>
-          </div>
-          <div class="mechanism-counters">
-            <div class="mechanism-counter"><strong id="mechanismSlices">0</strong><span>Slices sold</span></div>
-            <div class="mechanism-counter"><strong id="mechanismPenalty">—</strong><span>Avg penalty · market-set</span></div>
-            <div class="mechanism-counter"><strong id="mechanismKept">100%</strong><span>Position kept</span></div>
-          </div>
-          <div class="survival-banner" id="survivalBanner">▮ POSITION SURVIVED · KEPT <span id="survivalKept">—</span> · AVG PENALTY <span id="survivalPenalty">—</span> VS FIXED 5.00%</div>
-        </section>
-        <p class="comparison-note" style="border:0">DETERMINISTIC REPLAY · −8% CRASH · HALF RETRACE · 2.5% MICRO-SLICES · +10BPS PER 300MS BLOCK</p>
-        <div class="outcome-grid">
-          <section class="outcome"><h3>CLASSIC AAVE LIQUIDATION</h3><strong class="red">−5.00% · CLOSED</strong><p>HF crosses 1.00 for one block. The fixed-bonus liquidation path closes the distressed position before the retrace.</p></section>
-          <section class="outcome"><h3>SLICER · SAME CRASH</h3><strong class="green" id="slicerOutcome">SURVIVED</strong><p>Micro-slices repay debt while keepers compete on discount. Slicing halts immediately when HF returns above 1.00.</p></section>
+        <div class="response-grid">
+          <section class="module" aria-labelledby="distributionTitle">
+            <div class="module-head"><h2 class="panel-title" id="distributionTitle">Latest post-response distribution</h2></div>
+            <div class="allocation-stack"><div class="allocation-side"><h3>SUPPLIED ASSETS</h3><div id="latestSupplyDistribution"></div></div><div class="allocation-side"><h3>BORROWED ASSETS</h3><div id="latestBorrowDistribution"></div></div></div>
+            <div class="response-summary"><span>TOTAL SUPPLIED <strong id="latestTotalSupply">—</strong></span><span>TOTAL BORROWED <strong id="latestTotalBorrow">—</strong></span></div>
+          </section>
+          <section class="module" aria-labelledby="compositionTitle">
+            <div class="module-head"><h2 class="panel-title" id="compositionTitle">Latest adjustment composition · <span class="amber" id="compositionTime">T+00</span></h2></div>
+            <div class="table-scroll"><table class="data-table action-table"><thead><tr><th>#</th><th>Action type</th><th>Asset</th><th>Value</th><th>Asset amount</th><th>Monad indexer</th></tr></thead><tbody id="actionBody"></tbody></table></div>
+            <div class="receipt-note">LIVE RECEIPTS · Every asset row links to the confirmed atomic vault transaction on Monad testnet.</div>
+          </section>
         </div>
       </main>
     </div>
@@ -835,6 +790,9 @@
 <script>
 (function () {
   "use strict";
+
+  var PRICE_STEP = .05;
+  var PRICE_STEP_PERCENT = 5;
 
   var $ = function (id) { return document.getElementById(id); };
   var money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -848,11 +806,7 @@
     shockAsset: "WETH",
     portfolio: null,
     live: null,
-    liveBusy: false,
-    mechanismTimer: null,
-    mechanismIndex: 0,
-    mechanismFed: 0,
-    mechanismPlayed: false
+    liveBusy: false
   };
 
   var supplyMarkets = [
@@ -1006,6 +960,12 @@
     return Object.keys(values).reduce(function (sum, symbol) { return sum + values[symbol]; }, 0);
   }
 
+  function terminalHealth(previousHealth, multiplier, wasLiquidated) {
+    if (wasLiquidated) return { health: previousHealth, liquidated: true };
+    var health = previousHealth * multiplier;
+    return { health: health, liquidated: health <= state.aaveBoundary };
+  }
+
   function makeAction(time, index, type, asset, value, price) {
     return {
       type: type,
@@ -1034,8 +994,8 @@
     $("priceUp").disabled = busy;
     $("resetTrajectory").disabled = busy;
     $("shockAsset").disabled = busy;
-    $("priceDown").textContent = busy ? "BROADCASTING…" : "−1% PRICE";
-    $("priceUp").textContent = busy ? "BROADCASTING…" : "+1% PRICE";
+    $("priceDown").textContent = busy ? "BROADCASTING…" : "−5% PRICE";
+    $("priceUp").textContent = busy ? "BROADCASTING…" : "+5% PRICE";
   }
 
   async function submitLiveStep(payload) {
@@ -1082,6 +1042,9 @@
       optimized: state.targetHealth,
       concentrated: state.targetHealth,
       staticValue: state.targetHealth,
+      optimizedLiquidated: false,
+      concentratedLiquidated: false,
+      staticLiquidated: false,
       action: "INITIALIZED",
       actions: [],
       debt: state.portfolio.totalBorrow,
@@ -1091,6 +1054,7 @@
       staticImpact: 0
     };
     state.live = {
+      trajectoryId: window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : "trajectory-" + Date.now().toString(36),
       values: values,
       borrowValues: borrowValues,
       factors: factors,
@@ -1099,6 +1063,8 @@
       equityImpact: 0,
       concentratedImpact: 0,
       staticImpact: 0,
+      optimizedLiquidated: false,
+      liquidationHealth: null,
       lastTransition: {
         beforeHealth: state.targetHealth,
         beforeCollateral: state.portfolio.totalSupply,
@@ -1128,18 +1094,21 @@
     var market = state.portfolio.supplies.find(function (item) { return item.symbol === state.shockAsset; });
     if (!market) return;
     var responseTime = live.history.length;
+    var previous = live.history[live.history.length - 1];
+    var wasLiquidated = live.optimizedLiquidated;
     var beforeCollateral = collateralValue(live.values);
     var beforeDebt = live.debt;
-    var beforeHealth = riskValue(live.values) / beforeDebt;
+    var beforeHealth = wasLiquidated ? live.liquidationHealth : riskValue(live.values) / beforeDebt;
     var previousAssetValue = live.values[market.symbol];
-    var nextFactor = live.factors[market.symbol] * (1 + direction * .01);
+    var nextFactor = live.factors[market.symbol] * (1 + direction * PRICE_STEP);
     var shockedValues = Object.assign({}, live.values);
-    shockedValues[market.symbol] *= 1 + direction * .01;
+    if (!wasLiquidated) shockedValues[market.symbol] *= 1 + direction * PRICE_STEP;
 
     var shockedCollateral = collateralValue(shockedValues);
-    var preHealth = riskValue(shockedValues) / beforeDebt;
+    var preHealth = wasLiquidated ? live.liquidationHealth : riskValue(shockedValues) / beforeDebt;
     var shockedEquity = shockedCollateral - beforeDebt;
-    var shouldRebalance = preHealth < state.targetHealth;
+    var optimizedLiquidated = wasLiquidated || preHealth <= state.aaveBoundary;
+    var shouldRebalance = !optimizedLiquidated && preHealth < state.targetHealth;
     var targetCollateral = shockedCollateral;
     var targetDebt = beforeDebt;
     var targetSupplyValues = Object.assign({}, shockedValues);
@@ -1177,12 +1146,21 @@
       });
     }
 
+    var projectedOptimizedImpact = wasLiquidated ? live.equityImpact : (shockedEquity - state.equity) / state.equity;
+    var projectedStaticImpact = previous.staticLiquidated ? live.staticImpact : live.staticImpact + (shockedValues[market.symbol] - previousAssetValue) / state.equity * .58 / market.weight;
+
     setLiveBusy(true);
-    setLiveStatus("pending", "AWAITING CONFIRMATION", (direction > 0 ? "+1% " : "−1% ") + market.symbol + " oracle tick" + (shouldRebalance ? " + atomic vault basket" : ""));
+    setLiveStatus("pending", "AWAITING CONFIRMATION", (direction > 0 ? "+5% " : "−5% ") + market.symbol + " oracle tick" + (shouldRebalance ? " + atomic vault basket" : optimizedLiquidated ? " · liquidated position remains closed" : ""));
     try {
       var receipt = await submitLiveStep({
         asset: market.symbol,
         direction: direction,
+        trajectoryId: live.trajectoryId,
+        tick: responseTime,
+        stepPercent: PRICE_STEP_PERCENT,
+        equity: state.equity,
+        optimizedImpact: projectedOptimizedImpact,
+        staticImpact: projectedStaticImpact,
         preHealth: preHealth,
         targetHealth: state.targetHealth,
         actions: actions.map(function (action) {
@@ -1199,18 +1177,21 @@
       });
       var debtDelta = targetDebt - beforeDebt;
       var valueChange = shockedValues[market.symbol] - previousAssetValue;
-      live.equityImpact = (shockedEquity - state.equity) / state.equity;
-      live.concentratedImpact += valueChange / state.equity * .86 / market.weight;
-      live.staticImpact += valueChange / state.equity * .58 / market.weight;
+      var concentratedStep = terminalHealth(previous.concentrated, 1 + direction * PRICE_STEP * .86, previous.concentratedLiquidated);
+      var staticStep = terminalHealth(previous.staticValue, 1 + direction * PRICE_STEP * .58, previous.staticLiquidated);
+      live.equityImpact = projectedOptimizedImpact;
+      if (!previous.concentratedLiquidated) live.concentratedImpact += valueChange / state.equity * .86 / market.weight;
+      live.staticImpact = projectedStaticImpact;
       live.factors[market.symbol] = nextFactor;
       live.values = targetSupplyValues;
       live.borrowValues = targetBorrowValues;
       live.debt = targetDebt;
+      live.optimizedLiquidated = optimizedLiquidated || receipt.liquidated;
+      if (live.optimizedLiquidated && live.liquidationHealth == null) live.liquidationHealth = receipt.finalHealth;
 
-      var previous = live.history[live.history.length - 1];
-      var postHealth = receipt.finalHealth;
-      var debtAction = shouldRebalance ? (debtDelta < -1 ? "NET REPAY " + money.format(Math.abs(debtDelta)) : debtDelta > 1 ? "NET BORROW " + money.format(debtDelta) : "DEBT NEUTRAL") : "NO ACTION · HF ABOVE TARGET";
-      var actionSummary = actions.length ? actions.map(function (item) { return item.type + " " + item.asset; }).join(" · ") : "NO ACTION · HF ABOVE TARGET";
+      var postHealth = live.optimizedLiquidated ? live.liquidationHealth : receipt.finalHealth;
+      var debtAction = live.optimizedLiquidated ? "LIQUIDATED · POSITION CLOSED" : shouldRebalance ? (debtDelta < -1 ? "NET REPAY " + money.format(Math.abs(debtDelta)) : debtDelta > 1 ? "NET BORROW " + money.format(debtDelta) : "DEBT NEUTRAL") : "NO ACTION · HF ABOVE TARGET";
+      var actionSummary = live.optimizedLiquidated ? "LIQUIDATED · POSITION CLOSED" : actions.length ? actions.map(function (item) { return item.type + " " + item.asset; }).join(" · ") : "NO ACTION · HF ABOVE TARGET";
       var point = {
         time: responseTime,
         asset: market.symbol,
@@ -1220,8 +1201,11 @@
         preHealth: preHealth,
         postHealth: postHealth,
         optimized: postHealth,
-        concentrated: previous.concentrated * (1 + direction * .01 * .86),
-        staticValue: previous.staticValue * (1 + direction * .01 * .58),
+        concentrated: concentratedStep.health,
+        staticValue: staticStep.health,
+        optimizedLiquidated: live.optimizedLiquidated,
+        concentratedLiquidated: concentratedStep.liquidated,
+        staticLiquidated: staticStep.liquidated,
         action: actionSummary,
         actions: actions,
         oracleHash: receipt.oracleTx.hash,
@@ -1247,14 +1231,15 @@
         targetDebt: targetDebt,
         debtDelta: debtDelta,
         action: debtAction,
-        priceAction: shouldRebalance ? actions.length + " CONFIRMED ASSET ACTIONS · " + (direction > 0 ? "+1% " : "−1% ") + market.symbol : "CONFIRMED MONITOR TICK · HF " + preHealth.toFixed(3) + " ≥ " + state.targetHealth.toFixed(2),
+        priceAction: live.optimizedLiquidated ? "POSITION CLOSED · PRICE RECOVERY DISABLED" : shouldRebalance ? actions.length + " CONFIRMED ASSET ACTIONS · " + (direction > 0 ? "+5% " : "−5% ") + market.symbol : "CONFIRMED MONITOR TICK · HF " + preHealth.toFixed(3) + " ≥ " + state.targetHealth.toFixed(2),
         oracleHash: receipt.oracleTx.hash,
         oracleUrl: receipt.oracleTx.url,
         vaultHash: receipt.vaultTx ? receipt.vaultTx.hash : null,
         vaultUrl: receipt.vaultTx ? receipt.vaultTx.url : null,
         actions: actions
       };
-      setLiveStatus("", receipt.vaultTx ? "VAULT CONFIRMED" : "ORACLE CONFIRMED", shortHash(receipt.vaultTx ? receipt.vaultTx.hash : receipt.oracleTx.hash) + " · HF " + postHealth.toFixed(3));
+      var notificationDetail = receipt.notification && receipt.notification.status === "sent" ? " · TELEGRAM SENT" : "";
+      setLiveStatus(live.optimizedLiquidated ? "liquidated" : "", live.optimizedLiquidated ? "VAULT LIQUIDATED" : receipt.vaultTx ? "VAULT CONFIRMED" : "ORACLE CONFIRMED", shortHash(receipt.vaultTx ? receipt.vaultTx.hash : receipt.oracleTx.hash) + " · HF " + postHealth.toFixed(3) + notificationDetail);
       setLiveBusy(false);
       renderLive();
     } catch (error) {
@@ -1264,8 +1249,8 @@
     }
   }
 
-  function strategyState(health) {
-    if (health < state.aaveBoundary) return { label: "LIQUIDATABLE", className: "red" };
+  function strategyState(health, liquidated) {
+    if (liquidated || health <= state.aaveBoundary) return { label: "LIQUIDATED", className: "red" };
     if (health < 1.10) return { label: "AT RISK", className: "red" };
     if (health < state.targetHealth) return { label: "WATCH", className: "amber" };
     return { label: "SAFE", className: "green" };
@@ -1303,28 +1288,14 @@
     var transition = live.lastTransition;
     var actions = transition.actions || [];
     $("trajectoryTime").textContent = "T+" + String(last.time).padStart(2, "0");
-    $("transitionTime").textContent = "T+" + String(last.time).padStart(2, "0");
     $("compositionTime").textContent = "T+" + String(last.time).padStart(2, "0");
     $("cumulativeMove").textContent = signedPct(live.factors[market.symbol] - 1);
     $("currentPrice").textContent = money.format(market.price);
     $("simulatedPrice").textContent = money.format(market.price * live.factors[market.symbol]);
     $("controllerCurrentHealth").textContent = transition.beforeHealth.toFixed(3);
     $("controllerShockHealth").textContent = transition.preHealth.toFixed(3);
-    $("controllerShockHealth").className = strategyState(transition.preHealth).className;
+    $("controllerShockHealth").className = strategyState(transition.preHealth, last.optimizedLiquidated).className;
     $("controllerTargetHealth").textContent = transition.postHealth.toFixed(3);
-    $("currentStageHealth").textContent = transition.beforeHealth.toFixed(3);
-    $("currentStageSupply").textContent = money.format(transition.beforeCollateral);
-    $("currentStageDebt").textContent = money.format(transition.beforeDebt);
-    $("shockStageHealth").textContent = transition.preHealth.toFixed(3);
-    $("shockStageHealth").className = "big-hf " + strategyState(transition.preHealth).className;
-    $("shockStageSupply").textContent = money.format(transition.shockedCollateral);
-    $("shockStageDebt").textContent = money.format(transition.shockedDebt);
-    $("targetStageHealth").textContent = transition.postHealth.toFixed(3);
-    $("targetStageSupply").textContent = money.format(transition.targetCollateral);
-    $("targetStageDebt").textContent = money.format(transition.targetDebt);
-    $("debtAction").textContent = transition.action;
-    $("rotationAction").textContent = transition.priceAction;
-    $("postActionHealth").textContent = transition.postHealth.toFixed(3);
 
     var vaultTransactions = live.history.filter(function (point) { return point.vaultHash; }).length;
     $("stepCount").textContent = vaultTransactions + " VAULT TRANSACTIONS";
@@ -1337,7 +1308,7 @@
     if (!actions.length) {
       $("actionBody").innerHTML = last.time === 0
         ? '<tr><td>—</td><td class="faint">INITIALIZE</td><td>TOP-' + state.topN + ' BASKETS</td><td>—</td><td>—</td><td class="faint">AWAITING RESPONSE</td></tr>'
-        : '<tr><td>—</td><td><span class="action-type">NO ACTION</span></td><td>' + last.asset + '</td><td>—</td><td>—</td><td><a class="tx-link" href="' + transition.oracleUrl + '" target="_blank" rel="noopener noreferrer" aria-label="View confirmed oracle tick on Monadscan">' + shortHash(transition.oracleHash) + ' ↗</a></td></tr>';
+        : '<tr><td>—</td><td><span class="action-type ' + (last.optimizedLiquidated ? 'repay' : '') + '">' + (last.optimizedLiquidated ? 'LIQUIDATED' : 'NO ACTION') + '</span></td><td>' + last.asset + '</td><td>—</td><td>—</td><td><a class="tx-link" href="' + transition.oracleUrl + '" target="_blank" rel="noopener noreferrer" aria-label="View confirmed oracle tick on Monadscan">' + shortHash(transition.oracleHash) + ' ↗</a></td></tr>';
     } else {
       $("actionBody").innerHTML = actions.map(function (action, index) {
         var marketInfo = supplyMarkets.concat(borrowMarkets).find(function (item) { return item.symbol === action.asset; });
@@ -1347,20 +1318,20 @@
     }
 
     $("trajectoryBody").innerHTML = live.history.slice().reverse().map(function (point) {
-      var tick = point.tick === 0 ? "START" : (point.tick > 0 ? "+1% " : "−1% ") + point.asset;
+      var tick = point.tick === 0 ? "START" : (point.tick > 0 ? "+5% " : "−5% ") + point.asset;
       var price = point.price == null ? "—" : money.format(point.price);
       var response = point.actions && point.actions.length ? point.actions.length + " CONFIRMED · " + point.actions.map(function (action) { return action.type + " " + action.asset; }).join(", ") : point.action;
-      return '<tr><td>T+' + String(point.time).padStart(2, "0") + '</td><td><span class="tick-badge ' + (point.tick < 0 ? 'red' : point.tick > 0 ? 'green' : 'faint') + '">' + tick + '</span></td><td>' + price + '</td><td class="' + strategyState(point.preHealth).className + '">' + point.preHealth.toFixed(3) + '</td><td>' + response + '</td></tr>';
+      return '<tr><td>T+' + String(point.time).padStart(2, "0") + '</td><td><span class="tick-badge ' + (point.tick < 0 ? 'red' : point.tick > 0 ? 'green' : 'faint') + '">' + tick + '</span></td><td>' + price + '</td><td class="' + strategyState(point.preHealth, point.optimizedLiquidated).className + '">' + point.preHealth.toFixed(3) + '</td><td>' + response + '</td></tr>';
     }).join("");
 
     var rows = [
-      { name: "OPTIMIZED RESPONSE", dot: "", before: last.preHealth, after: last.postHealth, impact: last.impact },
-      { name: "CONCENTRATED APY", dot: "purple", before: last.concentrated, after: last.concentrated, impact: last.concentratedImpact },
-      { name: "STATIC AAVE", dot: "gray", before: last.staticValue, after: last.staticValue, impact: last.staticImpact }
+      { name: "OPTIMIZED RESPONSE", dot: "", before: last.preHealth, after: last.postHealth, impact: last.impact, liquidated: last.optimizedLiquidated },
+      { name: "CONCENTRATED APY", dot: "purple", before: last.concentrated, after: last.concentrated, impact: last.concentratedImpact, liquidated: last.concentratedLiquidated },
+      { name: "STATIC AAVE", dot: "gray", before: last.staticValue, after: last.staticValue, impact: last.staticImpact, liquidated: last.staticLiquidated }
     ];
     $("liveBenchmarkBody").innerHTML = rows.map(function (row, index) {
-      var status = strategyState(row.after);
-      return '<tr class="' + (index === 0 ? 'selected' : '') + '"><td><span class="benchmark-label"><span class="benchmark-dot ' + row.dot + '"></span>' + row.name + '</span></td><td class="' + strategyState(row.before).className + '">' + row.before.toFixed(3) + '</td><td class="' + status.className + '">' + row.after.toFixed(3) + '</td><td class="' + (row.impact < 0 ? 'red' : 'green') + '">' + signedPct(row.impact) + '</td><td class="' + status.className + '">' + status.label + '</td></tr>';
+      var status = strategyState(row.after, row.liquidated);
+      return '<tr class="' + (index === 0 ? 'selected ' : '') + (row.liquidated ? 'liquidated-row' : '') + '"><td><span class="benchmark-label"><span class="benchmark-dot ' + row.dot + '"></span>' + row.name + '</span></td><td class="' + strategyState(row.before, row.liquidated).className + '">' + row.before.toFixed(3) + '</td><td class="' + status.className + '">' + row.after.toFixed(3) + '</td><td class="' + (row.impact < 0 || row.liquidated ? 'red' : 'green') + '">' + signedPct(row.impact) + '</td><td class="' + status.className + '">' + status.label + '</td></tr>';
     }).join("");
     drawTrajectory();
   }
@@ -1697,18 +1668,6 @@
     setRangeFill(this);
     renderOptimizer();
   });
-  $("runOptimizer").addEventListener("click", function () {
-    var button = this, label = button.querySelector("span");
-    button.disabled = true;
-    label.textContent = "SCANNING AAVE MARKETS";
-    window.setTimeout(function () {
-      renderOptimizer();
-      $("lastRun").textContent = "· UPDATED AT BLOCK " + $("liveBlock").textContent;
-      label.textContent = "TARGET BUILT";
-      window.setTimeout(function () { button.disabled = false; label.textContent = "BUILD TARGET PORTFOLIO"; }, 900);
-    }, reducedMotion ? 0 : 650);
-  });
-
   $("shockAsset").addEventListener("change", function () {
     state.shockAsset = this.value;
     renderLive();
@@ -1716,7 +1675,6 @@
   $("priceDown").addEventListener("click", function () { advanceTrajectory(-1); });
   $("priceUp").addEventListener("click", function () { advanceTrajectory(1); });
   $("resetTrajectory").addEventListener("click", initializeTrajectory);
-  $("replayMechanism").addEventListener("click", playMechanism);
 
   document.querySelectorAll(".tab-button").forEach(function (button) {
     button.addEventListener("click", function () {
@@ -1725,8 +1683,6 @@
       document.querySelectorAll(".tab-panel").forEach(function (panel) { panel.hidden = panel.id !== "panel-" + target; });
       window.setTimeout(function () {
         if (target === "vault") drawTrajectory();
-        if (target === "stress" && !state.mechanismPlayed) playMechanism();
-        else if (target === "stress") renderMechanismFrame(MECHANISM.frames[state.mechanismIndex], false);
       }, 20);
     });
   });
@@ -1736,12 +1692,10 @@
     window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(function () {
       drawTrajectory();
-      if (!$("panel-stress").hidden) renderMechanismFrame(MECHANISM.frames[state.mechanismIndex], false);
     }, 100);
   });
 
   renderOptimizer();
-  resetMechanism();
   loadChainStatus();
 })();
 </script>

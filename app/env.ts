@@ -13,6 +13,10 @@ function address(name: string): Address {
   return getAddress(required(name));
 }
 
+function optional(name: string): string | undefined {
+  return process.env[name]?.trim() || undefined;
+}
+
 const privateKey = required("MONAD_TESTNET_PRIVATE_KEY");
 if (!/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
   throw new Error("MONAD_TESTNET_PRIVATE_KEY must be a 32-byte 0x-prefixed hex value");
@@ -25,6 +29,8 @@ export const env = {
   privateKey: privateKey as Hex,
   poolAddress: address("AAVE_POOL_ADDRESS"),
   vaultAddress: address("MANAGED_VAULT_ADDRESS"),
+  telegramBotToken: optional("TELEGRAM_BOT_TOKEN"),
+  telegramChatId: optional("TELEGRAM_CHAT_ID"),
   assets: {
     WETH: { address: address("ASSET_WETH_ADDRESS"), decimals: 18 },
     wstETH: { address: address("ASSET_WSTETH_ADDRESS"), decimals: 18 },
@@ -37,4 +43,3 @@ export const env = {
 if (!Number.isInteger(env.port) || env.port < 1 || env.port > 65535) {
   throw new Error("APP_PORT must be a valid TCP port");
 }
-

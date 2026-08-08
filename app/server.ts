@@ -11,6 +11,7 @@ import {
 import { transactionUrl } from "./chain.js";
 import { harnessAbi, poolAbi, vaultAbi } from "./contracts.js";
 import { env } from "./env.js";
+import { TelegramSavingsNotifier } from "./telegram.js";
 import { account, publicClient, walletClient } from "./viem.js";
 
 const pagePath = resolve("docs/reference/slicer-v4.html");
@@ -28,12 +29,19 @@ interface LiveActionInput {
 interface LiveStepInput {
   asset: AssetName;
   direction: -1 | 1;
+  trajectoryId: string;
+  tick: number;
+  stepPercent: number;
+  equity: number;
+  optimizedImpact: number;
+  staticImpact: number;
   preHealth: number;
   targetHealth: number;
   actions: LiveActionInput[];
 }
 
 let transactionInFlight = false;
+const telegramNotifier = new TelegramSavingsNotifier(env.telegramBotToken, env.telegramChatId);
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, {
@@ -75,8 +83,24 @@ function validateStep(value: unknown): LiveStepInput {
   const input = value as Partial<LiveStepInput>;
   if (!(input.asset && input.asset in env.assets)) throw new Error("Unsupported trajectory asset");
   if (input.direction !== -1 && input.direction !== 1) throw new Error("Direction must be -1 or 1");
-  if (!Number.isFinite(input.preHealth) || input.preHealth! <= 1 || input.preHealth! > 5) {
-    throw new Error("Pre-response HF must be between 1 and 5");
+  if (typeof input.trajectoryId !== "string" || !/^[a-zA-Z0-9-]{8,64}$/.test(input.trajectoryId)) {
+    throw new Error("Invalid trajectory identifier");
+  }
+  if (!Number.isInteger(input.tick) || input.tick! < 1 || input.tick! > 1_000_000) {
+    throw new Error("Tick must be a positive integer");
+  }
+  if (input.stepPercent !== 5) throw new Error("Price step must be 5 percent");
+  if (!Number.isFinite(input.equity) || input.equity! <= 0 || input.equity! > 1_000_000_000) {
+    throw new Error("Invalid vault equity");
+  }
+  if (!Number.isFinite(input.optimizedImpact) || Math.abs(input.optimizedImpact!) > 100) {
+    throw new Error("Invalid optimized impact");
+  }
+  if (!Number.isFinite(input.staticImpact) || Math.abs(input.staticImpact!) > 100) {
+    throw new Error("Invalid static impact");
+  }
+  if (!Number.isFinite(input.preHealth) || input.preHealth! <= 0 || input.preHealth! > 5) {
+    throw new Error("Pre-response HF must be between 0 and 5");
   }
   if (!Number.isFinite(input.targetHealth) || input.targetHealth! < 1.5 || input.targetHealth! > 2.6) {
     throw new Error("Target HF must be between 1.50 and 2.60");
@@ -202,8 +226,10 @@ async function executeLiveStep(input: LiveStepInput) {
 
   const preHealthFactor = parseUnits(input.preHealth.toFixed(6), 18);
   const oracleHash = await sendHarnessTick(preHealthFactor, targetHealthFactor);
+  const liquidationBoundary = parseUnits("1", 18);
+  const liquidated = preHealthFactor <= liquidationBoundary;
   let vaultHash: Hex | null = null;
-  if (preHealthFactor < targetHealthFactor) {
+  if (!liquidated && preHealthFactor < targetHealthFactor) {
     if (input.actions.length === 0) throw new Error("An unhealthy position requires a non-empty action basket");
     vaultHash = await sendVaultBatch(input.actions);
   }
@@ -213,6 +239,7 @@ async function executeLiveStep(input: LiveStepInput) {
     targetTx: targetHash ? { hash: targetHash, url: transactionUrl(targetHash) } : null,
     vaultTx: vaultHash ? { hash: vaultHash, url: transactionUrl(vaultHash) } : null,
     rebalanced: vaultHash !== null,
+    liquidated,
     finalHealth: Number(formatUnits(finalHealthFactor, 18)),
   };
 }
@@ -230,8 +257,22 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
     }
     transactionInFlight = true;
     try {
-      const result = await executeLiveStep(validateStep(await readJson(request)));
-      sendJson(response, 200, result);
+      const input = validateStep(await readJson(request));
+      const result = await executeLiveStep(input);
+      const notification = await telegramNotifier.notify({
+        trajectoryId: input.trajectoryId,
+        tick: input.tick,
+        asset: input.asset,
+        direction: input.direction,
+        stepPercent: input.stepPercent,
+        equity: input.equity,
+        optimizedImpact: input.optimizedImpact,
+        staticImpact: input.staticImpact,
+        finalHealth: result.finalHealth,
+        actionCount: input.actions.length,
+        liquidated: result.liquidated,
+      });
+      sendJson(response, 200, { ...result, notification });
     } finally {
       transactionInFlight = false;
     }
@@ -269,4 +310,5 @@ server.listen(env.port, env.host, async () => {
   console.log(`Slicer web app: http://${env.host}:${env.port}`);
   console.log(`Monad chain 10143 · wallet ${account.address}`);
   console.log(`Managed vault ${env.vaultAddress}`);
+  console.log(`Telegram savings alerts ${telegramNotifier.configured ? "enabled" : "disabled"}`);
 });
