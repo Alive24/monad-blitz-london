@@ -20,16 +20,16 @@ Leveraged DeFi positions are efficient—until the market moves. A falling colla
 - **Health-factor automation** — the vault acts only when HF falls below target, avoiding unnecessary churn in healthy markets.
 - **Diversified yield routing** — supply and borrow baskets are ranked by APY, value locked, liquidity, and HF contribution, then concentration-capped.
 - **Atomic asset-level execution** — one vault transaction can `SUPPLY`, `WITHDRAW`, `BORROW`, and `REPAY` multiple assets.
-- **Live onchain replay** — every ±5% price tick submits a real Monad testnet transaction through Viem and links the confirmed receipt on Monadscan.
+- **Live onchain replay** — every ±10% price tick submits a real Monad testnet transaction through Viem and links the confirmed receipt on Monadscan.
 - **Capital impact, not abstract metrics** — the Live Lab shows total simulated asset value after every tick for Slicer, an all-in-yield strategy, and a do-nothing position.
 - **Permanent liquidation semantics** — once a simulated strategy is liquidated, a later price recovery does not bring it back.
-- **Telegram rescue reports** — every ten ticks, Slicer reports the cumulative dollars and percentage of vault value protected when it beats the do-nothing benchmark.
+- **Telegram rescue reports** — Slicer alerts once when it first intervenes in each five-tick window, then reports cumulative dollars and percentage protected at the window close when it beats the do-nothing benchmark.
 
 ## Demo flow
 
 ```mermaid
 flowchart LR
-    A[Choose an asset] --> B[Move price ±5%]
+    A[Choose an asset] --> B[Move price ±10%]
     B --> C[Recalculate portfolio + HF]
     C --> D{HF below target?}
     D -- No --> E[Monitor · no transaction churn]

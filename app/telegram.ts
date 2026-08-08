@@ -9,6 +9,7 @@ export interface TelegramSavingsEvent {
   previousStaticImpact: number;
   optimizedImpact: number;
   staticImpact: number;
+  preHealth: number;
   finalHealth: number;
   actionCount: number;
   liquidated: boolean;
@@ -31,9 +32,9 @@ export interface TelegramSavingsWindow {
 }
 
 export type TelegramNotificationResult =
-  | { status: "sent"; amountSaved: number; percentageSaved: number }
-  | { status: "disabled"; amountSaved: number; percentageSaved: number }
-  | { status: "failed"; amountSaved: number; percentageSaved: number }
+  | { status: "sent"; kind: "intervention" | "summary"; amountSaved: number; percentageSaved: number }
+  | { status: "disabled"; kind: "intervention" | "summary"; amountSaved: number; percentageSaved: number }
+  | { status: "failed"; kind: "intervention" | "summary"; amountSaved: number; percentageSaved: number }
   | {
       status: "skipped";
       amountSaved: number;
@@ -42,6 +43,7 @@ export type TelegramNotificationResult =
     };
 
 type FetchTransport = typeof fetch;
+const NOTIFICATION_WINDOW_TICKS = 5;
 
 function dollarGap(event: TelegramSavingsEvent): number {
   return (event.optimizedImpact - event.staticImpact) * event.equity;
@@ -63,7 +65,9 @@ function signedPercent(value: number): string {
 export function buildTelegramSavingsWindow(
   events: TelegramSavingsEvent[],
 ): TelegramSavingsWindow {
-  if (events.length !== 10) throw new Error("A savings notification requires exactly ten ticks");
+  if (events.length !== NOTIFICATION_WINDOW_TICKS) {
+    throw new Error(`A savings notification requires exactly ${NOTIFICATION_WINDOW_TICKS} ticks`);
+  }
   const ordered = [...events].sort((left, right) => left.tick - right.tick);
   const first = ordered[0]!;
   const last = ordered[ordered.length - 1]!;
@@ -113,7 +117,7 @@ export function formatTelegramSavingsMessage(window: TelegramSavingsWindow): str
   return [
     "🚨🛟 SLICER SAVED YOUR ASS",
     "",
-    `LAST 10 TICKS · T${window.startTick}–T${window.endTick}`,
+    `LAST ${NOTIFICATION_WINDOW_TICKS} TICKS · T${window.startTick}–T${window.endTick}`,
     `Market path: ${marketPath}`,
     `Do nothing: ${signedMoney(window.staticDollarChange)} (${signedPercent(window.staticPercentChange)})`,
     `Slicer: ${signedMoney(window.optimizedDollarChange)} (${signedPercent(window.optimizedPercentChange)})`,
@@ -125,8 +129,26 @@ export function formatTelegramSavingsMessage(window: TelegramSavingsWindow): str
   ].join("\n");
 }
 
+export function formatTelegramInterventionMessage(event: TelegramSavingsEvent): string {
+  const windowStart = Math.floor((event.tick - 1) / NOTIFICATION_WINDOW_TICKS) * NOTIFICATION_WINDOW_TICKS + 1;
+  const windowEnd = windowStart + NOTIFICATION_WINDOW_TICKS - 1;
+  const move = `${event.direction > 0 ? "+" : "−"}${event.stepPercent}% ${event.asset}`;
+
+  return [
+    "⚡🛡️ SLICER STEPPED IN",
+    "",
+    `T${event.tick} · first intervention in ticks ${windowStart}–${windowEnd}`,
+    `Market move: ${move}`,
+    `HF rescued: ${event.preHealth.toFixed(2)} → ${event.finalHealth.toFixed(2)}`,
+    `🧯 ${event.actionCount} confirmed asset actions are protecting the vault.`,
+    "",
+    `Next alert: the cumulative dollars and percentage saved at T${windowEnd}.`,
+  ].join("\n");
+}
+
 export class TelegramSavingsNotifier {
   private readonly sent = new Set<string>();
+  private readonly interventionSent = new Set<string>();
   private readonly history = new Map<string, Map<number, TelegramSavingsEvent>>();
 
   constructor(
@@ -143,51 +165,76 @@ export class TelegramSavingsNotifier {
     const trajectory = this.history.get(event.trajectoryId) ?? new Map<number, TelegramSavingsEvent>();
     trajectory.set(event.tick, event);
     for (const tick of trajectory.keys()) {
-      if (tick < event.tick - 9) trajectory.delete(tick);
+      if (tick < event.tick - (NOTIFICATION_WINDOW_TICKS - 1)) trajectory.delete(tick);
     }
     this.history.set(event.trajectoryId, trajectory);
     return trajectory;
   }
 
-  async notify(event: TelegramSavingsEvent): Promise<TelegramNotificationResult> {
-    const trajectory = this.record(event);
-    if (event.tick % 10 !== 0) {
-      return { status: "skipped", amountSaved: 0, percentageSaved: 0, reason: "interval" };
-    }
-
-    const events: TelegramSavingsEvent[] = [];
-    for (let tick = event.tick - 9; tick <= event.tick; tick += 1) {
-      const recorded = trajectory.get(tick);
-      if (!recorded) {
-        return { status: "skipped", amountSaved: 0, percentageSaved: 0, reason: "incomplete-window" };
-      }
-      events.push(recorded);
-    }
-    const window = buildTelegramSavingsWindow(events);
-    const amountSaved = Math.max(0, window.amountSaved);
-    const percentageSaved = Math.max(0, window.percentageSaved);
-    if (amountSaved < 0.01) return { status: "skipped", amountSaved, percentageSaved, reason: "no-savings" };
-
-    const key = `${event.trajectoryId}:${event.tick}`;
-    if (this.sent.has(key)) return { status: "skipped", amountSaved, percentageSaved, reason: "duplicate" };
-    if (!this.configured) return { status: "disabled", amountSaved, percentageSaved };
-
+  private async deliver(text: string): Promise<"sent" | "failed"> {
     try {
       const response = await this.transport(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           chat_id: this.chatId,
-          text: formatTelegramSavingsMessage(window),
+          text,
           disable_web_page_preview: true,
         }),
         signal: AbortSignal.timeout(5_000),
       });
-      if (!response.ok) return { status: "failed", amountSaved, percentageSaved };
-      this.sent.add(key);
-      return { status: "sent", amountSaved, percentageSaved };
+      return response.ok ? "sent" : "failed";
     } catch {
-      return { status: "failed", amountSaved, percentageSaved };
+      return "failed";
     }
+  }
+
+  private async notifyFirstIntervention(event: TelegramSavingsEvent): Promise<TelegramNotificationResult | null> {
+    if (event.actionCount === 0 || event.liquidated) return null;
+    const windowStart = Math.floor((event.tick - 1) / NOTIFICATION_WINDOW_TICKS) * NOTIFICATION_WINDOW_TICKS + 1;
+    const key = `${event.trajectoryId}:${windowStart}`;
+    if (this.interventionSent.has(key)) return null;
+    const amountSaved = Math.max(0, dollarGap(event));
+    const percentageSaved = amountSaved / event.equity * 100;
+    if (!this.configured) return { status: "disabled", kind: "intervention", amountSaved, percentageSaved };
+
+    const status = await this.deliver(formatTelegramInterventionMessage(event));
+    if (status === "failed") return { status, kind: "intervention", amountSaved, percentageSaved };
+    this.interventionSent.add(key);
+    return { status, kind: "intervention", amountSaved, percentageSaved };
+  }
+
+  async notify(event: TelegramSavingsEvent): Promise<TelegramNotificationResult> {
+    const trajectory = this.record(event);
+    if (event.tick % NOTIFICATION_WINDOW_TICKS !== 0) {
+      const intervention = await this.notifyFirstIntervention(event);
+      return intervention ?? { status: "skipped", amountSaved: 0, percentageSaved: 0, reason: "interval" };
+    }
+
+    const events: TelegramSavingsEvent[] = [];
+    for (let tick = event.tick - (NOTIFICATION_WINDOW_TICKS - 1); tick <= event.tick; tick += 1) {
+      const recorded = trajectory.get(tick);
+      if (!recorded) {
+        const intervention = await this.notifyFirstIntervention(event);
+        return intervention ?? { status: "skipped", amountSaved: 0, percentageSaved: 0, reason: "incomplete-window" };
+      }
+      events.push(recorded);
+    }
+    const window = buildTelegramSavingsWindow(events);
+    const amountSaved = Math.max(0, window.amountSaved);
+    const percentageSaved = Math.max(0, window.percentageSaved);
+    if (amountSaved < 0.01) {
+      const intervention = await this.notifyFirstIntervention(event);
+      return intervention ?? { status: "skipped", amountSaved, percentageSaved, reason: "no-savings" };
+    }
+
+    const key = `${event.trajectoryId}:${event.tick}`;
+    if (this.sent.has(key)) return { status: "skipped", amountSaved, percentageSaved, reason: "duplicate" };
+    if (!this.configured) return { status: "disabled", kind: "summary", amountSaved, percentageSaved };
+
+    const status = await this.deliver(formatTelegramSavingsMessage(window));
+    if (status === "failed") return { status, kind: "summary", amountSaved, percentageSaved };
+    this.sent.add(key);
+    return { status, kind: "summary", amountSaved, percentageSaved };
   }
 }

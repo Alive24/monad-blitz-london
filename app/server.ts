@@ -91,7 +91,7 @@ function validateStep(value: unknown): LiveStepInput {
   if (!Number.isInteger(input.tick) || input.tick! < 1 || input.tick! > 1_000_000) {
     throw new Error("Tick must be a positive integer");
   }
-  if (input.stepPercent !== 5) throw new Error("Price step must be 5 percent");
+  if (input.stepPercent !== 10) throw new Error("Price step must be 10 percent");
   if (!Number.isFinite(input.equity) || input.equity! <= 0 || input.equity! > 1_000_000_000) {
     throw new Error("Invalid vault equity");
   }
@@ -278,6 +278,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
         previousStaticImpact: input.previousStaticImpact,
         optimizedImpact: input.optimizedImpact,
         staticImpact: input.staticImpact,
+        preHealth: input.preHealth,
         finalHealth: result.finalHealth,
         actionCount: input.actions.length,
         liquidated: result.liquidated,

@@ -729,8 +729,8 @@
         <div class="field">
           <span class="field-label">Advance next timestamp</span>
           <div class="step-controller">
-            <button class="step-button down" id="priceDown" type="button">−5% PRICE</button>
-            <button class="step-button up" id="priceUp" type="button">+5% PRICE</button>
+            <button class="step-button down" id="priceDown" type="button">−10% PRICE</button>
+            <button class="step-button up" id="priceUp" type="button">+10% PRICE</button>
           </div>
         </div>
         <div class="live-chain-status pending" id="liveChainStatus" role="status" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><strong id="liveChainStatusTitle">CONNECTING</strong><span id="liveChainStatusText">Checking the managed vault and transaction wallet…</span></div>
@@ -749,7 +749,7 @@
           <div class="threshold-row"><span>Aave boundary</span><strong>1.00</strong></div>
         </div>
         <button class="reset-link" id="resetTrajectory" type="button">RESET TRAJECTORY</button>
-        <p class="constraint-note">Each ±5% click broadcasts a real oracle tick. When HF falls below target, the app sends one atomic managed-vault basket and waits for confirmation.</p>
+        <p class="constraint-note">Each ±10% click broadcasts a real oracle tick. When HF falls below target, the app sends one atomic managed-vault basket and waits for confirmation.</p>
       </aside>
 
       <main class="main-stage">
@@ -791,8 +791,8 @@
 (function () {
   "use strict";
 
-  var PRICE_STEP = .05;
-  var PRICE_STEP_PERCENT = 5;
+  var PRICE_STEP = .10;
+  var PRICE_STEP_PERCENT = 10;
 
   var $ = function (id) { return document.getElementById(id); };
   var money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -994,8 +994,8 @@
     $("priceUp").disabled = busy;
     $("resetTrajectory").disabled = busy;
     $("shockAsset").disabled = busy;
-    $("priceDown").textContent = busy ? "BROADCASTING…" : "−5% PRICE";
-    $("priceUp").textContent = busy ? "BROADCASTING…" : "+5% PRICE";
+    $("priceDown").textContent = busy ? "BROADCASTING…" : "−10% PRICE";
+    $("priceUp").textContent = busy ? "BROADCASTING…" : "+10% PRICE";
   }
 
   async function submitLiveStep(payload) {
@@ -1150,7 +1150,7 @@
     var projectedStaticImpact = previous.staticLiquidated ? live.staticImpact : live.staticImpact + (shockedValues[market.symbol] - previousAssetValue) / state.equity * .58 / market.weight;
 
     setLiveBusy(true);
-    setLiveStatus("pending", "AWAITING CONFIRMATION", (direction > 0 ? "+5% " : "−5% ") + market.symbol + " oracle tick" + (shouldRebalance ? " + atomic vault basket" : optimizedLiquidated ? " · liquidated position remains closed" : ""));
+    setLiveStatus("pending", "AWAITING CONFIRMATION", (direction > 0 ? "+10% " : "−10% ") + market.symbol + " oracle tick" + (shouldRebalance ? " + atomic vault basket" : optimizedLiquidated ? " · liquidated position remains closed" : ""));
     try {
       var receipt = await submitLiveStep({
         asset: market.symbol,
@@ -1233,7 +1233,7 @@
         targetDebt: targetDebt,
         debtDelta: debtDelta,
         action: debtAction,
-        priceAction: live.optimizedLiquidated ? "POSITION CLOSED · PRICE RECOVERY DISABLED" : shouldRebalance ? actions.length + " CONFIRMED ASSET ACTIONS · " + (direction > 0 ? "+5% " : "−5% ") + market.symbol : "CONFIRMED MONITOR TICK · HF " + preHealth.toFixed(3) + " ≥ " + state.targetHealth.toFixed(2),
+        priceAction: live.optimizedLiquidated ? "POSITION CLOSED · PRICE RECOVERY DISABLED" : shouldRebalance ? actions.length + " CONFIRMED ASSET ACTIONS · " + (direction > 0 ? "+10% " : "−10% ") + market.symbol : "CONFIRMED MONITOR TICK · HF " + preHealth.toFixed(3) + " ≥ " + state.targetHealth.toFixed(2),
         oracleHash: receipt.oracleTx.hash,
         oracleUrl: receipt.oracleTx.url,
         vaultHash: receipt.vaultTx ? receipt.vaultTx.hash : null,
@@ -1320,7 +1320,7 @@
     }
 
     $("trajectoryBody").innerHTML = live.history.slice().reverse().map(function (point) {
-      var tick = point.tick === 0 ? "START" : (point.tick > 0 ? "+5% " : "−5% ") + point.asset;
+      var tick = point.tick === 0 ? "START" : (point.tick > 0 ? "+10% " : "−10% ") + point.asset;
       var price = point.price == null ? "—" : money.format(point.price);
       var totalAssetValue = money.format(Math.max(0, state.equity * (1 + point.impact)));
       var response = point.actions && point.actions.length ? point.actions.length + " CONFIRMED · " + point.actions.map(function (action) { return action.type + " " + action.asset; }).join(", ") : point.action;
