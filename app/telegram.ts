@@ -137,7 +137,7 @@ export function formatTelegramInterventionMessage(event: TelegramSavingsEvent): 
   return [
     "⚡🛡️ SLICER STEPPED IN",
     "",
-    `T${event.tick} · first intervention in ticks ${windowStart}–${windowEnd}`,
+    `T${event.tick} · intervention alert after a quiet period`,
     `Market move: ${move}`,
     `HF rescued: ${event.preHealth.toFixed(2)} → ${event.finalHealth.toFixed(2)}`,
     `🧯 ${event.actionCount} confirmed asset actions are protecting the vault.`,
@@ -165,7 +165,7 @@ export class TelegramSavingsNotifier {
     const trajectory = this.history.get(event.trajectoryId) ?? new Map<number, TelegramSavingsEvent>();
     trajectory.set(event.tick, event);
     for (const tick of trajectory.keys()) {
-      if (tick < event.tick - (NOTIFICATION_WINDOW_TICKS - 1)) trajectory.delete(tick);
+      if (tick < event.tick - NOTIFICATION_WINDOW_TICKS) trajectory.delete(tick);
     }
     this.history.set(event.trajectoryId, trajectory);
     return trajectory;
@@ -189,11 +189,20 @@ export class TelegramSavingsNotifier {
     }
   }
 
-  private async notifyFirstIntervention(event: TelegramSavingsEvent): Promise<TelegramNotificationResult | null> {
+  private async notifyFirstIntervention(
+    event: TelegramSavingsEvent,
+    trajectory: Map<number, TelegramSavingsEvent>,
+  ): Promise<TelegramNotificationResult | null> {
     if (event.actionCount === 0 || event.liquidated) return null;
-    const windowStart = Math.floor((event.tick - 1) / NOTIFICATION_WINDOW_TICKS) * NOTIFICATION_WINDOW_TICKS + 1;
-    const key = `${event.trajectoryId}:${windowStart}`;
+    const key = `${event.trajectoryId}:${event.tick}`;
     if (this.interventionSent.has(key)) return null;
+    const firstPreviousTick = Math.max(1, event.tick - NOTIFICATION_WINDOW_TICKS);
+    for (let tick = firstPreviousTick; tick < event.tick; tick += 1) {
+      const previous = trajectory.get(tick);
+      // After a restart, stay quiet until the notifier has observed the full cooldown.
+      if (!previous && event.tick > NOTIFICATION_WINDOW_TICKS) return null;
+      if (previous && previous.actionCount > 0 && !previous.liquidated) return null;
+    }
     const amountSaved = Math.max(0, dollarGap(event));
     const percentageSaved = amountSaved / event.equity * 100;
     if (!this.configured) return { status: "disabled", kind: "intervention", amountSaved, percentageSaved };
@@ -207,7 +216,7 @@ export class TelegramSavingsNotifier {
   async notify(event: TelegramSavingsEvent): Promise<TelegramNotificationResult> {
     const trajectory = this.record(event);
     if (event.tick % NOTIFICATION_WINDOW_TICKS !== 0) {
-      const intervention = await this.notifyFirstIntervention(event);
+      const intervention = await this.notifyFirstIntervention(event, trajectory);
       return intervention ?? { status: "skipped", amountSaved: 0, percentageSaved: 0, reason: "interval" };
     }
 
@@ -215,7 +224,7 @@ export class TelegramSavingsNotifier {
     for (let tick = event.tick - (NOTIFICATION_WINDOW_TICKS - 1); tick <= event.tick; tick += 1) {
       const recorded = trajectory.get(tick);
       if (!recorded) {
-        const intervention = await this.notifyFirstIntervention(event);
+        const intervention = await this.notifyFirstIntervention(event, trajectory);
         return intervention ?? { status: "skipped", amountSaved: 0, percentageSaved: 0, reason: "incomplete-window" };
       }
       events.push(recorded);
@@ -224,7 +233,7 @@ export class TelegramSavingsNotifier {
     const amountSaved = Math.max(0, window.amountSaved);
     const percentageSaved = Math.max(0, window.percentageSaved);
     if (amountSaved < 0.01) {
-      const intervention = await this.notifyFirstIntervention(event);
+      const intervention = await this.notifyFirstIntervention(event, trajectory);
       return intervention ?? { status: "skipped", amountSaved, percentageSaved, reason: "no-savings" };
     }
 

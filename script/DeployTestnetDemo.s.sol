@@ -41,8 +41,8 @@ contract DeployTestnetDemo {
         private
     {
         uint256 unit = 10 ** uint256(decimals);
-        token.mint(address(pool), 1_000_000 * unit);
-        token.mint(address(vault), 1_000_000 * unit);
-        pool.seedPosition(address(vault), address(token), 100_000 * unit, 50_000 * unit);
+        token.mint(address(pool), 1_000_000_000 * unit);
+        token.mint(address(vault), 1_000_000_000 * unit);
+        pool.seedPosition(address(vault), address(token), 100_000_000 * unit, 50_000 * unit);
     }
 }

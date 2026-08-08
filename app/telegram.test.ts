@@ -63,7 +63,7 @@ test("builds a cumulative five-tick window with dollars and percentage", () => {
   assert.match(message, /Slicer: −\$15,000 \(−3\.00%\)/);
 });
 
-test("alerts on only the first intervention in each five-tick window", async () => {
+test("alerts only after five ticks without an intervention", async () => {
   const messages: string[] = [];
   const transport = async (_input: string | URL | Request, init?: RequestInit) => {
     messages.push((JSON.parse(String(init?.body)) as { text: string }).text);
@@ -71,8 +71,8 @@ test("alerts on only the first intervention in each five-tick window", async () 
   };
   const notifier = new TelegramSavingsNotifier("token", "chat", transport as typeof fetch);
 
-  for (let tick = 1; tick <= 4; tick += 1) {
-    const actionCount = tick === 2 || tick === 4 ? 6 : 0;
+  for (let tick = 1; tick <= 9; tick += 1) {
+    const actionCount = tick === 1 || tick === 2 || tick === 8 || tick === 9 ? 6 : 0;
     await notifier.notify(savingsEvent(
       tick,
       -0.006 * tick,
@@ -84,12 +84,28 @@ test("alerts on only the first intervention in each five-tick window", async () 
     ));
   }
 
-  assert.equal(messages.length, 1);
-  assert.equal(messages[0], formatTelegramInterventionMessage(savingsEvent(2, -0.012, -0.02, -0.006, -0.01, 6, 1.62)));
-  assert.match(messages[0]!, /SLICER STEPPED IN/);
-  assert.match(messages[0]!, /first intervention in ticks 1–5/);
-  assert.match(messages[0]!, /HF rescued: 1\.62 → 1\.75/);
-  assert.match(messages[0]!, /Next alert: the cumulative dollars and percentage saved at T5/);
+  const interventionMessages = messages.filter((message) => message.includes("SLICER STEPPED IN"));
+  assert.equal(interventionMessages.length, 2);
+  assert.equal(interventionMessages[0], formatTelegramInterventionMessage(savingsEvent(1, -0.006, -0.01, 0, 0, 6, 1.62)));
+  assert.equal(interventionMessages[1], formatTelegramInterventionMessage(savingsEvent(8, -0.048, -0.08, -0.042, -0.07, 6, 1.62)));
+  assert.match(interventionMessages[0]!, /intervention alert after a quiet period/);
+  assert.match(interventionMessages[0]!, /HF rescued: 1\.62 → 1\.75/);
+  assert.match(interventionMessages[0]!, /Next alert: the cumulative dollars and percentage saved at T5/);
+  assert.match(interventionMessages[1]!, /T8 · intervention alert after a quiet period/);
+});
+
+test("stays quiet when prior intervention history is missing after restart", async () => {
+  let calls = 0;
+  const transport = async () => {
+    calls += 1;
+    return new Response("{}", { status: 200 });
+  };
+  const notifier = new TelegramSavingsNotifier("token", "chat", transport as typeof fetch);
+
+  const result = await notifier.notify(savingsEvent(8, -0.048, -0.08, -0.042, -0.07, 6, 1.62));
+
+  assert.equal(result.status, "skipped");
+  assert.equal(calls, 0);
 });
 
 test("tick ten reports only ticks six through ten", async () => {
