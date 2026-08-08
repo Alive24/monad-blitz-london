@@ -1,0 +1,25 @@
+{
+  "name": "slicer-monad-vault",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:contracts": "forge build",
+    "test:contracts": "forge test -vvv",
+    "deploy:testnet": "dotenv -e .env.local -- forge script script/DeployManagedAaveVault.s.sol:DeployManagedAaveVault --rpc-url monad_testnet --broadcast",
+    "typecheck": "tsc --noEmit",
+    "wallet:address": "node --import tsx automation/src/wallet-address.ts",
+    "vault:status": "node --import tsx automation/src/status.ts",
+    "vault:rebalance": "node --import tsx automation/src/rebalance.ts"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "viem": "^2.33.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "dotenv-cli": "^10.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}

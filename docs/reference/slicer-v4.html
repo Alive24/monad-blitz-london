@@ -399,8 +399,13 @@
     font-family: var(--mono);
     font-size: 10px;
     font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
     transition: width .25s ease;
   }
+  .basket-segment span { display: grid; gap: 3px; padding: 0 5px; }
+  .basket-segment strong { font-size: 9px; white-space: nowrap; }
+  .basket-segment small { font-size: 8px; font-weight: 700; white-space: nowrap; opacity: .78; }
   .basket-segment:last-child { border-right: 0; }
   .basket-segment:nth-child(1) { background: var(--amber); }
   .basket-segment:nth-child(2) { background: var(--purple); color: var(--ink); }
@@ -689,13 +694,13 @@
           <section class="module" aria-labelledby="supplyBasketTitle">
             <div class="module-head"><h2 class="panel-title" id="supplyBasketTitle">Supply basket · <span id="totalSupply">—</span></h2></div>
             <div class="basket-bar" id="supplyBar" aria-label="Supply basket weights"></div>
-            <div class="table-scroll"><table class="data-table" id="supplyTable"><thead><tr><th>Asset</th><th>Weight</th><th>Value locked</th><th>HF contribution</th><th>Supply APY</th></tr></thead><tbody></tbody></table></div>
+            <div class="table-scroll"><table class="data-table" id="supplyTable"><thead><tr><th>Asset</th><th>Weight</th><th>Target value</th><th>Value locked</th><th>HF contribution</th><th>Supply APY</th></tr></thead><tbody></tbody></table></div>
             <div class="basket-foot"><span id="supplyCount">—</span><span>45% POSITION CAP</span></div>
           </section>
           <section class="module" aria-labelledby="borrowBasketTitle">
             <div class="module-head"><h2 class="panel-title" id="borrowBasketTitle">Borrow basket · <span id="totalBorrow">—</span></h2></div>
             <div class="basket-bar" id="borrowBar" aria-label="Borrow basket weights"></div>
-            <div class="table-scroll"><table class="data-table" id="borrowTable"><thead><tr><th>Asset</th><th>Weight</th><th>Available liquidity</th><th>Borrow APY</th><th>Cost share</th></tr></thead><tbody></tbody></table></div>
+            <div class="table-scroll"><table class="data-table" id="borrowTable"><thead><tr><th>Asset</th><th>Weight</th><th>Target value</th><th>Available liquidity</th><th>Borrow APY</th><th>Cost share</th></tr></thead><tbody></tbody></table></div>
             <div class="basket-foot"><span id="borrowCount">—</span><span>45% POSITION CAP</span></div>
           </section>
         </div>
@@ -930,8 +935,8 @@
 
   function renderBar(id, markets) {
     $(id).innerHTML = markets.map(function (market) {
-      var label = market.weight >= .15 ? market.symbol + " " + pct(market.weight, 0) : market.symbol;
-      return '<div class="basket-segment" style="width:' + (market.weight * 100).toFixed(2) + '%" title="' + market.symbol + ' ' + pct(market.weight) + '">' + label + '</div>';
+      var label = market.weight >= .15 ? '<span><strong>' + market.symbol + ' ' + pct(market.weight, 0) + '</strong><small>' + money.format(market.value) + '</small></span>' : '<span><strong>' + market.symbol + '</strong><small>' + money.format(market.value) + '</small></span>';
+      return '<div class="basket-segment" style="width:' + (market.weight * 100).toFixed(2) + '%" title="' + market.symbol + ' · ' + pct(market.weight) + ' · ' + money.format(market.value) + '">' + label + '</div>';
     }).join("");
   }
 
@@ -961,12 +966,12 @@
     $("impliedRatio").textContent = "IMPLIED LTV " + pct(impliedRatio, 1);
 
     $("supplyTable").querySelector("tbody").innerHTML = portfolio.supplies.map(function (market) {
-      return '<tr><td><span class="mini-asset"><span class="mini-token">' + market.symbol.slice(0, 3) + '</span>' + market.symbol + '</span></td><td>' + pct(market.weight) + '</td><td>' + money.format(market.locked) + '</td><td class="green">' + pct(market.weight * market.threshold, 1) + '</td><td class="green">' + market.supplyApy.toFixed(2) + '%</td></tr>';
+      return '<tr><td><span class="mini-asset"><span class="mini-token">' + market.symbol.slice(0, 3) + '</span>' + market.symbol + '</span></td><td>' + pct(market.weight) + '</td><td><strong>' + money.format(market.value) + '</strong></td><td>' + money.format(market.locked) + '</td><td class="green">' + pct(market.weight * market.threshold, 1) + '</td><td class="green">' + market.supplyApy.toFixed(2) + '%</td></tr>';
     }).join("");
     var totalCost = portfolio.borrows.reduce(function (sum, item) { return sum + item.value * item.borrowApy; }, 0);
     $("borrowTable").querySelector("tbody").innerHTML = portfolio.borrows.map(function (market) {
       var costShare = market.value * market.borrowApy / totalCost;
-      return '<tr><td><span class="mini-asset"><span class="mini-token blue">' + market.symbol.slice(0, 2) + '</span>' + market.symbol + '</span></td><td>' + pct(market.weight) + '</td><td>' + money.format(market.liquidity) + '</td><td class="red">' + market.borrowApy.toFixed(2) + '%</td><td>' + pct(costShare) + '</td></tr>';
+      return '<tr><td><span class="mini-asset"><span class="mini-token blue">' + market.symbol.slice(0, 2) + '</span>' + market.symbol + '</span></td><td>' + pct(market.weight) + '</td><td><strong>' + money.format(market.value) + '</strong></td><td>' + money.format(market.liquidity) + '</td><td class="red">' + market.borrowApy.toFixed(2) + '%</td><td>' + pct(costShare) + '</td></tr>';
     }).join("");
     populateShockAssets();
     initializeTrajectory();
@@ -1089,33 +1094,43 @@
     var shockedCollateral = collateralValue(live.values);
     var preHealth = riskValue(live.values) / beforeDebt;
     var shockedEquity = shockedCollateral - beforeDebt;
-    var targetCollateral = shockedEquity / (1 - state.portfolio.effectiveThreshold / state.targetHealth);
-    var targetDebt = targetCollateral - shockedEquity;
-    var targetSupplyValues = {}, targetBorrowValues = {}, actions = [];
+    var shouldRebalance = preHealth < state.targetHealth;
+    var targetCollateral = shockedCollateral;
+    var targetDebt = beforeDebt;
+    var targetSupplyValues = Object.assign({}, live.values);
+    var targetBorrowValues = Object.assign({}, live.borrowValues);
+    var actions = [];
 
-    state.portfolio.supplies.forEach(function (supplyMarket) {
-      var currentValue = live.values[supplyMarket.symbol] || 0;
-      var targetValue = targetCollateral * supplyMarket.weight;
-      var difference = targetValue - currentValue;
-      targetSupplyValues[supplyMarket.symbol] = targetValue;
-      if (Math.abs(difference) >= 1) {
-        var type = difference > 0 ? "SUPPLY" : "WITHDRAW";
-        var currentPrice = supplyMarket.price * (live.factors[supplyMarket.symbol] || 1);
-        actions.push(makeAction(responseTime, actions.length, type, supplyMarket.symbol, Math.abs(difference), currentPrice));
-      }
-    });
+    if (shouldRebalance) {
+      targetCollateral = shockedEquity / (1 - state.portfolio.effectiveThreshold / state.targetHealth);
+      targetDebt = targetCollateral - shockedEquity;
+      targetSupplyValues = {};
+      targetBorrowValues = {};
 
-    state.portfolio.borrows.forEach(function (borrowMarket) {
-      var currentValue = live.borrowValues[borrowMarket.symbol] || 0;
-      var targetValue = targetDebt * borrowMarket.weight;
-      var difference = targetValue - currentValue;
-      targetBorrowValues[borrowMarket.symbol] = targetValue;
-      if (Math.abs(difference) >= 1) {
-        var type = difference > 0 ? "BORROW" : "REPAY";
-        var currentPrice = borrowMarket.price * (live.factors[borrowMarket.symbol] || 1);
-        actions.push(makeAction(responseTime, actions.length, type, borrowMarket.symbol, Math.abs(difference), currentPrice));
-      }
-    });
+      state.portfolio.supplies.forEach(function (supplyMarket) {
+        var currentValue = live.values[supplyMarket.symbol] || 0;
+        var targetValue = targetCollateral * supplyMarket.weight;
+        var difference = targetValue - currentValue;
+        targetSupplyValues[supplyMarket.symbol] = targetValue;
+        if (Math.abs(difference) >= 1) {
+          var type = difference > 0 ? "SUPPLY" : "WITHDRAW";
+          var currentPrice = supplyMarket.price * (live.factors[supplyMarket.symbol] || 1);
+          actions.push(makeAction(responseTime, actions.length, type, supplyMarket.symbol, Math.abs(difference), currentPrice));
+        }
+      });
+
+      state.portfolio.borrows.forEach(function (borrowMarket) {
+        var currentValue = live.borrowValues[borrowMarket.symbol] || 0;
+        var targetValue = targetDebt * borrowMarket.weight;
+        var difference = targetValue - currentValue;
+        targetBorrowValues[borrowMarket.symbol] = targetValue;
+        if (Math.abs(difference) >= 1) {
+          var type = difference > 0 ? "BORROW" : "REPAY";
+          var currentPrice = borrowMarket.price * (live.factors[borrowMarket.symbol] || 1);
+          actions.push(makeAction(responseTime, actions.length, type, borrowMarket.symbol, Math.abs(difference), currentPrice));
+        }
+      });
+    }
 
     var debtDelta = targetDebt - beforeDebt;
     var valueChange = live.values[market.symbol] - previousAssetValue;
@@ -1127,8 +1142,9 @@
     live.debt = targetDebt;
 
     var previous = live.history[live.history.length - 1];
-    var debtAction = debtDelta < -1 ? "NET REPAY " + money.format(Math.abs(debtDelta)) : debtDelta > 1 ? "NET BORROW " + money.format(debtDelta) : "DEBT NEUTRAL";
-    var actionSummary = actions.length ? actions.map(function (item) { return item.type + " " + item.asset; }).join(" · ") : "NO ASSET ACTIONS";
+    var postHealth = shouldRebalance ? state.targetHealth : preHealth;
+    var debtAction = shouldRebalance ? (debtDelta < -1 ? "NET REPAY " + money.format(Math.abs(debtDelta)) : debtDelta > 1 ? "NET BORROW " + money.format(debtDelta) : "DEBT NEUTRAL") : "NO ACTION · HF ABOVE TARGET";
+    var actionSummary = actions.length ? actions.map(function (item) { return item.type + " " + item.asset; }).join(" · ") : "NO ACTION · HF ABOVE TARGET";
     var point = {
       time: responseTime,
       asset: market.symbol,
@@ -1136,8 +1152,8 @@
       price: market.price * live.factors[market.symbol],
       currentHealth: beforeHealth,
       preHealth: preHealth,
-      postHealth: state.targetHealth,
-      optimized: state.targetHealth,
+      postHealth: postHealth,
+      optimized: postHealth,
       concentrated: previous.concentrated * (1 + direction * .01 * .86),
       staticValue: previous.staticValue * (1 + direction * .01 * .58),
       action: actionSummary,
@@ -1156,12 +1172,12 @@
       preHealth: preHealth,
       shockedCollateral: shockedCollateral,
       shockedDebt: beforeDebt,
-      postHealth: state.targetHealth,
+      postHealth: postHealth,
       targetCollateral: targetCollateral,
       targetDebt: targetDebt,
       debtDelta: debtDelta,
       action: debtAction,
-      priceAction: actions.length + " ASSET ACTIONS · " + (direction > 0 ? "+1% " : "−1% ") + market.symbol,
+      priceAction: shouldRebalance ? actions.length + " ASSET ACTIONS · " + (direction > 0 ? "+1% " : "−1% ") + market.symbol : "MONITOR ONLY · HF " + preHealth.toFixed(3) + " ≥ " + state.targetHealth.toFixed(2),
       actions: actions
     };
     renderLive();
@@ -1238,7 +1254,9 @@
     renderDistribution("latestBorrowDistribution", state.portfolio.borrows, live.borrowValues, transition.targetDebt, actions, false);
 
     if (!actions.length) {
-      $("actionBody").innerHTML = '<tr><td>—</td><td class="faint">INITIALIZE</td><td>TOP-' + state.topN + ' BASKETS</td><td>—</td><td>—</td><td class="faint">AWAITING RESPONSE</td></tr>';
+      $("actionBody").innerHTML = last.time === 0
+        ? '<tr><td>—</td><td class="faint">INITIALIZE</td><td>TOP-' + state.topN + ' BASKETS</td><td>—</td><td>—</td><td class="faint">AWAITING RESPONSE</td></tr>'
+        : '<tr><td>—</td><td><span class="action-type">NO ACTION</span></td><td>' + last.asset + '</td><td>—</td><td>—</td><td class="green">HF ' + transition.postHealth.toFixed(3) + ' ≥ TARGET ' + state.targetHealth.toFixed(2) + '</td></tr>';
     } else {
       $("actionBody").innerHTML = actions.map(function (action, index) {
         var marketInfo = supplyMarkets.concat(borrowMarkets).find(function (item) { return item.symbol === action.asset; });
