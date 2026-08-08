@@ -108,7 +108,7 @@ test("stays quiet when prior intervention history is missing after restart", asy
   assert.equal(calls, 0);
 });
 
-test("tick ten reports only ticks six through ten", async () => {
+test("anchors the five-tick summary to the first intervention", async () => {
   const messages: string[] = [];
   const transport = async (_input: string | URL | Request, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as { text: string };
@@ -117,51 +117,50 @@ test("tick ten reports only ticks six through ten", async () => {
   };
   const notifier = new TelegramSavingsNotifier("token", "chat", transport as typeof fetch);
 
-  for (let tick = 1; tick <= 5; tick += 1) {
-    await notifier.notify(savingsEvent(tick, -0.006 * tick, -0.01 * tick, -0.006 * (tick - 1), -0.01 * (tick - 1)));
-  }
-  for (let tick = 6; tick <= 10; tick += 1) {
-    const offset = tick - 5;
+  for (let tick = 1; tick <= 8; tick += 1) {
     await notifier.notify(savingsEvent(
       tick,
-      -0.03 - 0.002 * offset,
-      -0.05 - 0.006 * offset,
-      -0.03 - 0.002 * (offset - 1),
-      -0.05 - 0.006 * (offset - 1),
+      -0.006 * tick,
+      -0.01 * tick,
+      -0.006 * (tick - 1),
+      -0.01 * (tick - 1),
+      tick === 4 ? 6 : 0,
     ));
+    if (tick === 5) {
+      assert.equal(messages.length, 1);
+      assert.doesNotMatch(messages[0]!, /LAST 5 TICKS/);
+    }
   }
 
   assert.equal(messages.length, 2);
-  assert.match(messages[1]!, /LAST 5 TICKS · T6–T10/);
+  assert.match(messages[0]!, /T4 · intervention alert after a quiet period/);
+  assert.match(messages[0]!, /Next alert: the cumulative dollars and percentage saved at T8/);
+  assert.match(messages[1]!, /LAST 5 TICKS · T4–T8/);
   assert.match(messages[1]!, /MONEY KEPT: \$10,000 \(2\.00% of your vault\)/);
-  assert.doesNotMatch(messages[1]!, /\$20,000/);
 });
 
-test("can build the next five-tick window after a server restart", async () => {
-  const messages: string[] = [];
-  const transport = async (_input: string | URL | Request, init?: RequestInit) => {
-    messages.push((JSON.parse(String(init?.body)) as { text: string }).text);
+test("does not send periodic summaries before an intervention", async () => {
+  let calls = 0;
+  const transport = async () => {
+    calls += 1;
     return new Response("{}", { status: 200 });
   };
-  const restartedNotifier = new TelegramSavingsNotifier("token", "chat", transport as typeof fetch);
+  const notifier = new TelegramSavingsNotifier("token", "chat", transport as typeof fetch);
 
-  for (let tick = 6; tick <= 10; tick += 1) {
-    const offset = tick - 5;
-    await restartedNotifier.notify(savingsEvent(
+  for (let tick = 1; tick <= 10; tick += 1) {
+    await notifier.notify(savingsEvent(
       tick,
-      -0.03 - 0.002 * offset,
-      -0.05 - 0.006 * offset,
-      -0.03 - 0.002 * (offset - 1),
-      -0.05 - 0.006 * (offset - 1),
+      -0.006 * tick,
+      -0.01 * tick,
+      -0.006 * (tick - 1),
+      -0.01 * (tick - 1),
     ));
   }
 
-  assert.equal(messages.length, 1);
-  assert.match(messages[0]!, /LAST 5 TICKS · T6–T10/);
-  assert.match(messages[0]!, /MONEY KEPT: \$10,000 \(2\.00% of your vault\)/);
+  assert.equal(calls, 0);
 });
 
-test("does not notify when the last five ticks produced no savings", async () => {
+test("does not send an anchored summary when it produced no savings", async () => {
   let calls = 0;
   const transport = async () => {
     calls += 1;
@@ -177,10 +176,11 @@ test("does not notify when the last five ticks produced no savings", async () =>
       -0.006 * tick,
       -0.01 * (tick - 1),
       -0.006 * (tick - 1),
+      tick === 1 ? 6 : 0,
     ));
   }
 
   assert.equal(result?.status, "skipped");
   assert.equal(result && "reason" in result ? result.reason : undefined, "no-savings");
-  assert.equal(calls, 0);
+  assert.equal(calls, 1);
 });
