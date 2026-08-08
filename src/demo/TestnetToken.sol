@@ -27,10 +27,12 @@ contract TestnetToken is IERC20 {
         if (msg.sender != owner) revert Unauthorized();
         totalSupply += amount;
         balanceOf[to] += amount;
+        emit Transfer(address(0), to, amount);
     }
 
     function approve(address spender, uint256 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
         return true;
     }
 
@@ -49,5 +51,6 @@ contract TestnetToken is IERC20 {
     function _transfer(address from, address to, uint256 amount) private {
         balanceOf[from] -= amount;
         balanceOf[to] += amount;
+        emit Transfer(from, to, amount);
     }
 }

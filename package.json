@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --import tsx app/server.ts",
+    "test:telegram": "node --import tsx --test app/telegram.test.ts",
     "build:contracts": "forge build",
     "test:contracts": "forge test -vvv",
     "deploy:testnet": "dotenv -e .env.local -- forge script script/DeployManagedAaveVault.s.sol:DeployManagedAaveVault --rpc-url monad_testnet --broadcast",

@@ -18,7 +18,7 @@ Open <http://127.0.0.1:4174>, choose **Live Lab**, and press either price button
 
 ## Telegram savings alerts
 
-Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env.local` to enable alerts. After each tenth confirmed trajectory tick, Slicer compares optimized equity performance with the static Aave benchmark. It sends one short Telegram message only when the optimized strategy has positive dollar savings. Missing credentials or a Telegram delivery failure never blocks the Monad transaction.
+Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env.local` to enable alerts. After each tenth confirmed trajectory tick, Slicer reports the cumulative result for that ten-tick window: static Aave performance, optimized performance, dollars and percentage of vault value protected, compounded asset moves, rebalances, action count, and final HF. It sends only when that window produced positive savings. Missing credentials or a Telegram delivery failure never blocks the Monad transaction.
 
 ## Contracts and testnet deployment
 
@@ -29,9 +29,10 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env.local` to enable alerts
 
 Current Monad testnet deployment:
 
-- Managed vault: [`0xe05f…8c81`](https://testnet.monadscan.com/address/0xe05f5CfD7BF44d6Fa87b966462e2f34781828c81)
-- Pool harness: [`0xC0DC…04B9`](https://testnet.monadscan.com/address/0xC0DC570Df95EE407Af4f4Acbe3a6d78cEdF204B9)
-- Confirmed six-action vault batch: [`0x142f…517e`](https://testnet.monadscan.com/tx/0x142f48ade364814b068744aa9b7bd7c0fe9d8030fa655cda2be3cecb6323517e)
+- Managed vault, Monadscan exact match: [`0x485C…5e9F`](https://testnet.monadscan.com/address/0x485C3C1a28ad9848939265df2Fba5Bdef7e15e9F#code)
+- Pool harness, Monadscan exact match: [`0x25e0…d97d`](https://testnet.monadscan.com/address/0x25e0Fbd049e680D72C42128eFc85d9F7edD5d97d#code)
+- All five demo assets are also exact-match verified; their explorer-ready addresses are recorded in `deployments/monad-testnet.demo.json`.
+- Confirmed six-action vault batch with indexed ERC-20 transfers: [`0xea25…73f7`](https://testnet.monadscan.com/tx/0xea25186be4bf53b1c0c5dd832ad192c048ec6cfdffd28263a938d09a764f73f7)
 - Machine-readable addresses and receipts: `deployments/monad-testnet.demo.json`
 
 Deploy a fresh testnet system with:

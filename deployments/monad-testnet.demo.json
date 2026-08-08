@@ -2,27 +2,40 @@
   "network": "Monad Testnet",
   "chainId": 10143,
   "deployer": "0x9f7136fc32A3c8404102dbC6207a2A899a2fB32e",
-  "testnetAavePoolHarness": "0xC0DC570Df95EE407Af4f4Acbe3a6d78cEdF204B9",
-  "managedAaveVault": "0xe05f5CfD7BF44d6Fa87b966462e2f34781828c81",
+  "testnetAavePoolHarness": "0x25e0Fbd049e680D72C42128eFc85d9F7edD5d97d",
+  "managedAaveVault": "0x485C3C1a28ad9848939265df2Fba5Bdef7e15e9F",
   "targetHealthFactor": "1750000000000000000",
   "assets": {
-    "WETH": "0x3d19bb872937d86916fcc624b4ab7bec2e23fe11",
-    "wstETH": "0xd48f5704b9ef5886b0590b2a2045cadb4ae060ad",
-    "USDC": "0x4102cb694e1ca343211f9dab93ac71d3f407654d",
-    "AUSD": "0xca37848d3e46354db7649683893cb327892a48cb",
-    "USDe": "0x1d2fcf4e1f8d7ada259511abb0d7fc4464f0cba6"
+    "WETH": "0x4c0318b2ef7bd966c57cd6e7972095c505c7f274",
+    "wstETH": "0xb52342c2043ffd86710df69d3c5feb9d006a7850",
+    "USDC": "0x8de66325a786a52d1ffb91f0d7e2898e8f2a29f9",
+    "AUSD": "0x847fc1a06e6adbf35ea599cee83493655f1a618b",
+    "USDe": "0x3908dbd5937c51e900fb13683baf0ad35c9b11c9"
   },
   "transactions": {
-    "wethDeployment": "0x07430bed8471ee4dd883d437b73c0f97f5f886514367bb8c41e59ee40a2b33ab",
-    "wstethDeployment": "0x7968bce36c11d3f2b51082591a0ed2ef6c85bc0d1ed132331af5832068d0c07c",
-    "usdcDeployment": "0x24ef6ddad7428141a2c5612d202b7504d26d998155e9634e9235ce6824ac8a18",
-    "ausdDeployment": "0x0e6e2ccb6b2d91cbd716acebda92d5991c5029e87df46ff003b7d0ac9768349e",
-    "usdeDeployment": "0x660eb2fb0dc83cc806e877a57575d41b457999c1ce16060579f5cf26b0633973",
-    "poolDeployment": "0x090451f655b99339b3cf4696a9eceef33481d0ffe0df5ac04c549dd5231ce003",
-    "vaultDeployment": "0x26f7a896172da93b273452b352d2613fc72e741821dd01739cf60a9785835f74",
-    "verifiedOracleTick": "0xd46076f99b97196e90a3bf61c2a033f003489073c256e27fae912c021bacdf73",
-    "verifiedVaultBatch": "0x64bd5924d2b3ae6f7ad7eaf9a7895fc103aaddbde1758b19d7ddfa199f635e08",
-    "latestBrowserVaultBatch": "0x142f48ade364814b068744aa9b7bd7c0fe9d8030fa655cda2be3cecb6323517e"
+    "wethDeployment": "0x66af7ac20816c3870c3d21919a2567ef4edf116e93040eb3b71b48d4e1cfc748",
+    "wstethDeployment": "0xfbc1a2122570109711473079e603a204c20eff99f40b988b54460643504d9c77",
+    "usdcDeployment": "0xba839e2cc48ceb35ece332cd12e052ae396aebe35e9ca5fc76d494cb6ce015ac",
+    "ausdDeployment": "0xbbb2b7c745e82af7fdc9c2125ea66efc7142058717f765c4d47cbb0e35d976b8",
+    "usdeDeployment": "0x2813bd94d67eadfd0de68ad1333ea549a3c192545daec33fceddac715cba01d2",
+    "poolDeployment": "0x2e9a837025800ce9e743fa78bb688045953a04ed261b890ee5fbbc4ddc369ed6",
+    "vaultDeployment": "0xe9a83b8344922b61b1a40f5011d74879ef16a84a836b6d736a624edcb4079447",
+    "verifiedVaultBatch": "0xea25186be4bf53b1c0c5dd832ad192c048ec6cfdffd28263a938d09a764f73f7",
+    "latestBrowserVaultBatch": "0xea25186be4bf53b1c0c5dd832ad192c048ec6cfdffd28263a938d09a764f73f7"
+  },
+  "verification": {
+    "status": "Exact Match",
+    "compiler": "v0.8.24+commit.e11b9ed9",
+    "monadscanBaseUrl": "https://testnet.monadscan.com/address/",
+    "verifiedAddresses": [
+      "0x4c0318b2ef7bd966c57cd6e7972095c505c7f274",
+      "0xb52342c2043ffd86710df69d3c5feb9d006a7850",
+      "0x8de66325a786a52d1ffb91f0d7e2898e8f2a29f9",
+      "0x847fc1a06e6adbf35ea599cee83493655f1a618b",
+      "0x3908dbd5937c51e900fb13683baf0ad35c9b11c9",
+      "0x25e0Fbd049e680D72C42128eFc85d9F7edD5d97d",
+      "0x485C3C1a28ad9848939265df2Fba5Bdef7e15e9F"
+    ]
   },
   "warning": "The Pool is a testnet-only harness, not an Aave market. Never send valuable assets to it."
 }

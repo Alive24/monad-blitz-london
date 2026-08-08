@@ -33,6 +33,8 @@ interface LiveStepInput {
   tick: number;
   stepPercent: number;
   equity: number;
+  previousOptimizedImpact: number;
+  previousStaticImpact: number;
   optimizedImpact: number;
   staticImpact: number;
   preHealth: number;
@@ -96,8 +98,14 @@ function validateStep(value: unknown): LiveStepInput {
   if (!Number.isFinite(input.optimizedImpact) || Math.abs(input.optimizedImpact!) > 100) {
     throw new Error("Invalid optimized impact");
   }
+  if (!Number.isFinite(input.previousOptimizedImpact) || Math.abs(input.previousOptimizedImpact!) > 100) {
+    throw new Error("Invalid previous optimized impact");
+  }
   if (!Number.isFinite(input.staticImpact) || Math.abs(input.staticImpact!) > 100) {
     throw new Error("Invalid static impact");
+  }
+  if (!Number.isFinite(input.previousStaticImpact) || Math.abs(input.previousStaticImpact!) > 100) {
+    throw new Error("Invalid previous static impact");
   }
   if (!Number.isFinite(input.preHealth) || input.preHealth! <= 0 || input.preHealth! > 5) {
     throw new Error("Pre-response HF must be between 0 and 5");
@@ -266,6 +274,8 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
         direction: input.direction,
         stepPercent: input.stepPercent,
         equity: input.equity,
+        previousOptimizedImpact: input.previousOptimizedImpact,
+        previousStaticImpact: input.previousStaticImpact,
         optimizedImpact: input.optimizedImpact,
         staticImpact: input.staticImpact,
         finalHealth: result.finalHealth,
