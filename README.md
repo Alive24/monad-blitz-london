@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/reference/assets/slicer-project-hero.png" alt="Slicer stops a liquidation shock before it reaches a protected DeFi vault" width="100%" />
+  <img src="docs/reference/assets/slicer-project-hero.png" alt="SLI/CER" width="100%" />
 </p>
 
 <h1 align="center">SLI/CER</h1>
